@@ -1,5 +1,11 @@
 # envox
 
+## 0.0.4
+
+### Patch Changes
+
+- [#3](https://github.com/johnie/envox/pull/3) [`d1acd77`](https://github.com/johnie/envox/commit/d1acd7727d4ccdeb14c9a554c9c28847bda3df31) Thanks [@johnie](https://github.com/johnie)! - Add support for schema validation
+
 ## 0.0.3
 
 ### Patch Changes
