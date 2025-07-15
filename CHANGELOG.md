@@ -1,5 +1,11 @@
 # envox
 
+## 0.0.9
+
+### Patch Changes
+
+- [#12](https://github.com/johnie/envox/pull/12) [`a6da3c8`](https://github.com/johnie/envox/commit/a6da3c874c9f2d210bbffcf0d017faf9757a2ad5) Thanks [@johnie](https://github.com/johnie)! - Hotfixing the `fromObject` function.
+
 ## 0.0.8
 
 ### Patch Changes
