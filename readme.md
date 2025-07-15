@@ -91,7 +91,7 @@ interface EnvoxParseResult<T = Record<string, string>> {
   variables: EnvVariable[];  // Successfully parsed variables
   errors: EnvoxParseError[]; // Parse errors with line numbers
   isValid: boolean;          // true if no errors occurred
-  output?: T;                // Validated output when schema is provided
+  env?: T;                   // Validated output when schema is provided
 }
 ```
 
@@ -186,9 +186,9 @@ const envContent = `
 const result = await parseEnv(envContent, { schema: ConfigSchema });
 
 if (result.isValid) {
-  console.log(result.output); // Fully typed and validated config
-  console.log(result.output.PORT); // number (3000)
-  console.log(result.output.DEBUG); // boolean (true)
+  console.log(result.env); // Fully typed and validated config
+  console.log(result.env.PORT); // number (3000)
+  console.log(result.env.DEBUG); // boolean (true)
 } else {
   console.error('Validation errors:', result.errors);
 }
@@ -502,10 +502,10 @@ const result = await parseEnv(`
   CACHE_TTL=3600
 `, { schema: AdvancedSchema });
 
-if (result.isValid && result.output) {
-  console.log(result.output.ALLOWED_ORIGINS); // ['https://example.com', 'https://app.example.com']
-  console.log(result.output.FEATURE_FLAGS);   // { newUI: true, betaFeatures: false }
-  console.log(result.output.DEPLOYMENT_DATE); // Date object
+if (result.isValid && result.env) {
+  console.log(result.env.ALLOWED_ORIGINS); // ['https://example.com', 'https://app.example.com']
+  console.log(result.env.FEATURE_FLAGS);   // { newUI: true, betaFeatures: false }
+  console.log(result.env.DEPLOYMENT_DATE); // Date object
 }
 ```
 
