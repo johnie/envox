@@ -1,5 +1,11 @@
 # envox
 
+## 0.0.7
+
+### Patch Changes
+
+- [#8](https://github.com/johnie/envox/pull/8) [`a929091`](https://github.com/johnie/envox/commit/a929091a41f051641ef7be49d815219f0ebb7f81) Thanks [@johnie](https://github.com/johnie)! - Clean up the code a little bit.
+
 ## 0.0.6
 
 ### Patch Changes
