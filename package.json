@@ -1,0 +1,51 @@
+{
+    "name": "envox",
+    "version": "0.0.1",
+    "description": "Fast and flexible environment variable parser with detailed error reporting.",
+    "main": "dist/index.js",
+    "exports": {
+        ".": {
+            "import": "./dist/index.js",
+            "require": "./dist/index.cjs"
+        }
+    },
+    "typings": "dist/index.d.ts",
+    "files": [
+        "dist"
+    ],
+    "type": "module",
+    "scripts": {
+        "build": "tsup",
+        "ci": "$npm_execpath run build && $npm_execpath run check-format && $npm_execpath run check-exports && $npm_execpath run lint && $npm_execpath run test",
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "format": "biome format --write ./src",
+        "check-format": "biome check --write ./src",
+        "check-exports": "attw --pack .",
+        "local-release": "$npm_execpath run ci && changeset version && changeset publish",
+        "release": "$npm_execpath run ci && changeset publish"
+    },
+    "keywords": [
+        "module"
+    ],
+    "author": "Johnie Hjelm <johnie@hjelm.im>",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/johnie/envox.git"
+    },
+    "bugs": {
+        "url": "https://github.com/johnie/envox/issues"
+    },
+    "homepage": "https://github.com/johnie/envox#readme",
+    "devDependencies": {
+        "@arethetypeswrong/cli": "^0.18.2",
+        "@biomejs/biome": "^2.1.1",
+        "@changesets/changelog-github": "^0.5.1",
+        "@changesets/cli": "^2.29.5",
+        "@types/node": "^24.0.14",
+        "tsup": "^8.5.0",
+        "typescript": "^5.8.3",
+        "vitest": "^3.2.4"
+    }
+}
