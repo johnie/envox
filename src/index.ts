@@ -90,7 +90,7 @@ export async function parseEnv<TOut = Record<string, string>>(
   return { ok: true, data: obj as TOut, vars: variables };
 }
 
-export { isEnvFile, toObject, fromObject };
+export { isEnvFile, fromObject };
 
 export type {
   EnvVariable,
