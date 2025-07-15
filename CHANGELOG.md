@@ -1,5 +1,11 @@
 # envox
 
+## 0.0.6
+
+### Patch Changes
+
+- [`55e8986`](https://github.com/johnie/envox/commit/55e8986eb38b5fe553b24af5f3a0634caae75131) Thanks [@johnie](https://github.com/johnie)! - Update readme and package.json
+
 ## 0.0.5
 
 ### Patch Changes
