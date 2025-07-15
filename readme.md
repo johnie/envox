@@ -13,8 +13,6 @@
 <br/>
 <br/>
 
-Fast and flexible environment variable parser with detailed error reporting.
-
 ## Installation
 
 Install envox with your preferred package manager:
@@ -277,6 +275,39 @@ if (!result.isValid) {
   });
 }
 ```
+
+### Validating Environment with Zod
+
+If you want to validate the parsed environment variables with strict types, you can use for example [zod](https://zod.dev/):
+
+```typescript
+import { z } from 'zod';
+import { envToObject } from 'envox';
+
+// Define schema
+const EnvSchema = z.object({
+  NODE_ENV: z.enum(['development', 'production', 'test']),
+  PORT: z.coerce.number().int().positive(),
+  DATABASE_URL: z.string().url(),
+  DEBUG: z.coerce.boolean().optional()
+});
+
+// Load and parse
+const env = envToObject(`
+  NODE_ENV=development
+  PORT=3000
+  DATABASE_URL=https://localhost/db
+  DEBUG=true
+`);
+
+// Validate
+const parsed = EnvSchema.parse(env);
+
+console.log(parsed.PORT);  // 3000
+console.log(parsed.DEBUG); // true
+```
+
+You’ll get helpful errors if something is missing or incorrectly typed.
 
 ## Contributing
 
