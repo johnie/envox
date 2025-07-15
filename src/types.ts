@@ -6,18 +6,30 @@ export interface EnvVariable {
   line: number;
 }
 
-export interface EnvoxParseResult<T = Record<string, string>> {
-  variables: EnvVariable[];
-  errors: EnvoxParseError[];
-  isValid: boolean;
-  /** Validated environment when schema is provided */
-  env?: T;
-}
-
 export interface EnvoxParseError {
   line: number;
   message: string;
   content: string;
+}
+
+export type ParseSuccess<T> = {
+  ok: true;
+  data: T;
+  vars: EnvVariable[];
+};
+
+export type ParseFailure = {
+  ok: false;
+  errors: EnvoxParseError[];
+};
+
+export type ParseResult<T> = ParseSuccess<T> | ParseFailure;
+
+export interface EnvoxParseResult<T = Record<string, string>> {
+  variables: EnvVariable[];
+  errors: EnvoxParseError[];
+  isValid: boolean;
+  env?: T;
 }
 
 export interface EnvoxOptions<T = Record<string, string>> {
@@ -28,15 +40,3 @@ export interface EnvoxOptions<T = Record<string, string>> {
   expandVariables?: boolean;
   schema?: StandardSchemaV1<Record<string, string>, T>;
 }
-
-export interface EnvoxValidationError {
-  type: 'validation';
-  message: string;
-  path?: ReadonlyArray<PropertyKey | StandardSchemaV1.PathSegment>;
-}
-
-export interface EnvoxError extends EnvoxParseError {
-  type: 'parse';
-}
-
-export type EnvoxAllErrors = EnvoxError | EnvoxValidationError;
