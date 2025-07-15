@@ -1,15 +1,14 @@
-import type {
-  EnvoxOptions,
-  EnvoxParseResult,
-  EnvoxParseError,
-  ParseResult,
-  EnvVariable,
-} from '@/types';
 import { REGEX } from '@/constants';
 import { EnvoxError } from '@/errors';
 import { expandValue } from '@/expansions';
+import { fromObject, isEnvFile, toObject } from '@/helpers';
 import { runSchema } from '@/schema';
-import { isEnvFile, toObject, fromObject } from '@/helpers';
+import type {
+  EnvoxOptions,
+  EnvoxParseError,
+  EnvVariable,
+  ParseResult,
+} from '@/types';
 
 const defaultOptions = {
   allowEmpty: true,
@@ -28,7 +27,7 @@ export class Envox<TOut = Record<string, string>> {
   }
 
   async parse(
-    source: string | Record<string, string | undefined>
+    source: string | Record<string, string | undefined>,
   ): Promise<ParseResult<TOut>> {
     const variables: EnvVariable[] = [];
     const errors: EnvoxParseError[] = [];
@@ -101,7 +100,7 @@ export class Envox<TOut = Record<string, string>> {
   private parseLine(
     line: string,
     lineNumber: number,
-    envMap: Map<string, string>
+    envMap: Map<string, string>,
   ): EnvVariable | null {
     const trimmedLine = line.trim();
 
@@ -128,7 +127,7 @@ export class Envox<TOut = Record<string, string>> {
       throw new EnvoxError(
         lineNumber,
         line,
-        `Invalid environment variable key: ${key}`
+        `Invalid environment variable key: ${key}`,
       );
     }
 

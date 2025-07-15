@@ -40,7 +40,7 @@ export function toObject(variables: EnvVariable[]): Record<string, string> {
 
 export function fromObject(
   obj: Record<string, string>,
-  includeExport = false
+  includeExport = false,
 ): string {
   const prefix = includeExport ? 'export ' : '';
   return Object.entries(obj)
