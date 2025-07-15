@@ -1,5 +1,11 @@
 # envox
 
+## 0.0.5
+
+### Patch Changes
+
+- [#5](https://github.com/johnie/envox/pull/5) [`3c0291e`](https://github.com/johnie/envox/commit/3c0291e94c933a0c518568bd3e810c07645446e2) Thanks [@johnie](https://github.com/johnie)! - Add support for process.env
+
 ## 0.0.4
 
 ### Patch Changes
