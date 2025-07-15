@@ -1,9 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
-import { parseEnv, isEnvFile, toObject, fromObject } from '@/index';
-import { expandValue } from '@/expansions';
-import { EnvoxError } from '@/errors';
-import { REGEX } from '@/constants';
 import type { StandardSchemaV1 } from '@standard-schema/spec';
+import { EnvoxError } from '@/errors';
+import { expandValue } from '@/expansions';
+import { parseEnv, isEnvFile, fromObject } from '@/index';
+import { REGEX } from '@/constants';
+import { toObject } from '@/helpers';
 
 describe('parseEnv', () => {
   describe('basic parsing', () => {
@@ -603,7 +604,7 @@ describe('helpers', () => {
 
     it('should add export prefix when includeExport is true', () => {
       const obj = { KEY: 'value' };
-      const result = fromObject(obj, true);
+      const result = fromObject(obj, { includeExport: true });
       expect(result).toBe('export KEY=value');
     });
 
