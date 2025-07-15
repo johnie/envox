@@ -28,14 +28,14 @@ bun add envox
 For schema validation, install a compatible validation library:
 
 ```bash
-npm install zod valibot effect
+npm install zod valibot @effect/schema
 # or your preferred validation library that supports Standard Schema
 ```
 
 ## Quick Start
 
 ```typescript
-import { parseEnv, envToObject } from 'envox';
+import { Envox } from 'envox';
 
 const envContent = `
 # Database configuration
@@ -48,13 +48,15 @@ API_KEY="secret-key-123"
 DEBUG=true
 `;
 
-const result = await parseEnv(envContent);
-console.log(result.variables); // Parsed variables with line numbers
-console.log(result.isValid);   // true if no errors
+const envox = new Envox();
+const result = await envox.parse(envContent);
 
-// Convert to plain object
-const env = await envToObject(envContent);
-console.log(env.DB_HOST); // "localhost"
+if (result.ok) {
+  console.log(result.data);    // { DB_HOST: 'localhost', DB_PORT: '5432', ... }
+  console.log(result.vars);    // Array of variables with line numbers
+} else {
+  console.error(result.errors); // Parse errors with line numbers
+}
 ```
 
 ## Features
@@ -70,77 +72,68 @@ console.log(env.DB_HOST); // "localhost"
 
 ## API Reference
 
-### `parseEnv(source, options?)`
+### `Envox` Class
 
-Parse environment variable content from a string or process.env object and return detailed results.
+The main class for parsing environment variables.
 
 ```typescript
-import { parseEnv } from 'envox';
+import { Envox } from 'envox';
 
-// Parse from string
-const result = await parseEnv(content, {
-  allowEmpty: true,        // Allow lines without equals sign
-  allowComments: true,     // Allow # comments
-  allowExport: true,       // Allow export prefix
-  trimValues: true,        // Trim whitespace from values
-  expandVariables: false,  // Expand ${VAR} and $VAR references
-  schema: mySchema         // Optional: validate with Standard Schema
-});
+const envox = new Envox(options);
+const result = await envox.parse(source);
+```
 
-// Parse from process.env
-const result = await parseEnv(process.env, {
-  expandVariables: true,
-  schema: mySchema
-});
+#### Constructor Options
 
-// Result structure
-interface EnvoxParseResult<T = Record<string, string>> {
-  variables: EnvVariable[];  // Successfully parsed variables
-  errors: EnvoxParseError[]; // Parse errors with line numbers
-  isValid: boolean;          // true if no errors occurred
-  env?: T;                   // Validated output when schema is provided
+```typescript
+interface EnvoxOptions<T = Record<string, string>> {
+  allowEmpty?: boolean;      // Default: true
+  allowComments?: boolean;   // Default: true  
+  allowExport?: boolean;     // Default: true
+  trimValues?: boolean;      // Default: true
+  expandVariables?: boolean; // Default: false
+  schema?: StandardSchemaV1<Record<string, string>, T>; // Optional schema
 }
 ```
 
-### `envToObject(source, options?)`
+#### `parse(source)` Method
 
-Convert environment content or process.env directly to a plain object. Throws if parsing fails.
+Parse environment variables from a string or object.
 
 ```typescript
-import { envToObject } from 'envox';
-
-// From string
-const env = await envToObject(`
+// Parse from string
+const result = await envox.parse(`
   DATABASE_URL=postgres://localhost/mydb
   PORT=3000
 `);
 
-// From process.env
-const env = await envToObject(process.env, {
-  expandVariables: true,
-  schema: mySchema
-});
-
-console.log(env.DATABASE_URL); // "postgres://localhost/mydb"
-console.log(env.PORT);         // "3000"
+// Parse from process.env or any object
+const result = await envox.parse(process.env);
+const result = await envox.parse({ API_KEY: 'secret', DEBUG: 'true' });
 ```
 
-### `objectToEnv(obj, includeExport?)`
-
-Convert a plain object back to environment variable format.
-
+**Returns:**
 ```typescript
-import { objectToEnv } from 'envox';
+type ParseResult<T> = 
+  | { ok: true; data: T; vars: EnvVariable[] }
+  | { ok: false; errors: EnvoxParseError[] };
 
-const obj = { API_KEY: 'secret', DEBUG: 'true' };
-const envString = objectToEnv(obj, true); // Include 'export' prefix
+interface EnvVariable {
+  key: string;
+  value: string;
+  line: number;
+}
 
-console.log(envString);
-// export API_KEY=secret
-// export DEBUG=true
+interface EnvoxParseError {
+  line: number;
+  message: string;
+  content: string;
+}
 ```
 
-### `isEnvFile(content)`
+### Helper Functions
+
+#### `isEnvFile(content)`
 
 Check if content looks like an environment file.
 
@@ -155,33 +148,46 @@ const content = `
 console.log(isEnvFile(content)); // true
 ```
 
-### `Envox` Class
+#### `toObject(variables)`
 
-For advanced usage, you can use the `Envox` class directly:
+Convert variables array to plain object.
 
 ```typescript
-import { Envox } from 'envox';
+import { toObject } from 'envox';
 
-const parser = new Envox({
-  expandVariables: true,
-  allowComments: true,
-  schema: mySchema
-});
+const variables = [
+  { key: 'API_KEY', value: 'secret', line: 1 },
+  { key: 'DEBUG', value: 'true', line: 2 }
+];
 
-const result = await parser.parse(content);
-// or
-const result = await parser.parse(process.env);
+const obj = toObject(variables);
+console.log(obj); // { API_KEY: 'secret', DEBUG: 'true' }
+```
+
+#### `fromObject(obj, includeExport?)`
+
+Convert a plain object to environment variable format.
+
+```typescript
+import { fromObject } from 'envox';
+
+const obj = { API_KEY: 'secret', DEBUG: 'true' };
+const envString = fromObject(obj, true); // Include 'export' prefix
+
+console.log(envString);
+// export API_KEY=secret
+// export DEBUG=true
 ```
 
 ## Schema Validation
 
-Envox supports any validation library that implements the [Standard Schema](https://standardschema.dev/) specification. This includes popular libraries like Zod, Valibot, and many others.
+Envox supports any validation library that implements the [Standard Schema](https://standardschema.dev/) specification. This includes popular libraries like Zod, Valibot, and Effect Schema.
 
 ### With Zod
 
 ```typescript
 import { z } from 'zod';
-import { parseEnv, envToObject } from 'envox';
+import { Envox } from 'envox';
 
 // Define your schema
 const ConfigSchema = z.object({
@@ -199,26 +205,23 @@ const envContent = `
 `;
 
 // Parse with validation
-const result = await parseEnv(envContent, { schema: ConfigSchema });
+const envox = new Envox({ schema: ConfigSchema });
+const result = await envox.parse(envContent);
 
-if (result.isValid) {
-  console.log(result.env); // Fully typed and validated config
-  console.log(result.env.PORT); // number (3000)
-  console.log(result.env.DEBUG); // boolean (true)
+if (result.ok) {
+  console.log(result.data); // Fully typed and validated config
+  console.log(result.data.PORT); // number (3000)
+  console.log(result.data.DEBUG); // boolean (true)
 } else {
   console.error('Validation errors:', result.errors);
 }
-
-// Or use the convenience function
-const config = await envToObject(envContent, { schema: ConfigSchema });
-console.log(config.PORT); // Typed as number
 ```
 
 ### With Valibot
 
 ```typescript
 import * as v from 'valibot';
-import { parseEnv } from 'envox';
+import { Envox } from 'envox';
 
 const ConfigSchema = v.object({
   API_KEY: v.string(),
@@ -226,7 +229,8 @@ const ConfigSchema = v.object({
   ENABLE_SSL: v.pipe(v.string(), v.transform(val => val === 'true'), v.boolean())
 });
 
-const result = await parseEnv(envContent, { schema: ConfigSchema });
+const envox = new Envox({ schema: ConfigSchema });
+const result = await envox.parse(envContent);
 ```
 
 ### Custom Schema
@@ -251,8 +255,8 @@ const customSchema: StandardSchemaV1<Record<string, string>, MyConfig> = {
       if (!obj.name || !obj.version) {
         return {
           issues: [
-            { message: 'name is required' },
-            { message: 'version is required' }
+            { message: 'name is required', path: ['name'] },
+            { message: 'version is required', path: ['version'] }
           ]
         };
       }
@@ -260,7 +264,7 @@ const customSchema: StandardSchemaV1<Record<string, string>, MyConfig> = {
       const version = parseInt(obj.version, 10);
       if (isNaN(version)) {
         return {
-          issues: [{ message: 'version must be a number' }]
+          issues: [{ message: 'version must be a number', path: ['version'] }]
         };
       }
 
@@ -274,23 +278,11 @@ const customSchema: StandardSchemaV1<Record<string, string>, MyConfig> = {
   }
 };
 
-const result = await parseEnv(envContent, { schema: customSchema });
+const envox = new Envox({ schema: customSchema });
+const result = await envox.parse(envContent);
 ```
 
 ## Options
-
-All parsing functions accept an optional `EnvoxOptions` object:
-
-```typescript
-interface EnvoxOptions<T = Record<string, string>> {
-  allowEmpty?: boolean;      // Default: true
-  allowComments?: boolean;   // Default: true  
-  allowExport?: boolean;     // Default: true
-  trimValues?: boolean;      // Default: true
-  expandVariables?: boolean; // Default: false
-  schema?: StandardSchemaV1<Record<string, string>, T>; // Optional schema
-}
-```
 
 ### Option Details
 
@@ -306,7 +298,7 @@ interface EnvoxOptions<T = Record<string, string>> {
 Envox can parse and validate variables directly from `process.env`:
 
 ```typescript
-import { envToObject, parseEnv } from 'envox';
+import { Envox } from 'envox';
 import { z } from 'zod';
 
 // Parse process.env with schema validation
@@ -316,14 +308,23 @@ const schema = z.object({
   API_KEY: z.string().min(1)
 });
 
-const config = await envToObject(process.env, { schema });
+const envox = new Envox({ schema });
+const result = await envox.parse(process.env);
+
+if (result.ok) {
+  console.log(result.data); // Typed and validated config
+}
 
 // Variable expansion also works with process.env
 process.env.API_HOST = 'api.example.com';
 process.env.API_URL = 'https://${API_HOST}/v1';
 
-const expanded = await envToObject(process.env, { expandVariables: true });
-console.log(expanded.API_URL); // "https://api.example.com/v1"
+const expandingEnvox = new Envox({ expandVariables: true });
+const expanded = await expandingEnvox.parse(process.env);
+
+if (expanded.ok) {
+  console.log(expanded.data.API_URL); // "https://api.example.com/v1"
+}
 ```
 
 ## Using with dotenv
@@ -332,7 +333,7 @@ Envox works great alongside dotenv for enhanced validation and type safety:
 
 ```typescript
 import 'dotenv/config'; // Load .env file into process.env
-import { envToObject } from 'envox';
+import { Envox } from 'envox';
 import { z } from 'zod';
 
 // Define your configuration schema
@@ -345,20 +346,28 @@ const ConfigSchema = z.object({
 });
 
 // Validate and transform process.env after dotenv loads it
-const config = await envToObject(process.env, { schema: ConfigSchema });
+const envox = new Envox({ schema: ConfigSchema });
+const result = await envox.parse(process.env);
 
-// Now you have fully typed and validated configuration
-console.log(config.PORT); // TypeScript knows this is a number
-console.log(config.DEBUG); // TypeScript knows this is a boolean
-
-export default config;
+if (result.ok) {
+  const config = result.data;
+  
+  // Now you have fully typed and validated configuration
+  console.log(config.PORT); // TypeScript knows this is a number
+  console.log(config.DEBUG); // TypeScript knows this is a boolean
+  
+  export default config;
+} else {
+  console.error('Configuration errors:', result.errors);
+  process.exit(1);
+}
 ```
 
 ### Advanced dotenv integration
 
 ```typescript
 import dotenv from 'dotenv';
-import { envToObject, parseEnv } from 'envox';
+import { Envox } from 'envox';
 import { z } from 'zod';
 
 // Load different .env files based on environment
@@ -375,20 +384,22 @@ const ConfigSchema = z.object({
 });
 
 // Parse with detailed error reporting
-const result = await parseEnv(process.env, { 
+const envox = new Envox({ 
   schema: ConfigSchema,
   expandVariables: true 
 });
 
-if (!result.isValid) {
+const result = await envox.parse(process.env);
+
+if (!result.ok) {
   console.error('Configuration errors:');
   result.errors.forEach(error => {
-    console.error(`- ${error.message}`);
+    console.error(`- ${error.message} (line ${error.line})`);
   });
   process.exit(1);
 }
 
-const config = result.env!;
+const config = result.data;
 ```
 
 ## Variable Expansion
@@ -402,10 +413,12 @@ const content = `
   FULL_URL=$API_ENDPOINT/users
 `;
 
-const result = await parseEnv(content, { expandVariables: true });
-const env = await envToObject(content, { expandVariables: true });
+const envox = new Envox({ expandVariables: true });
+const result = await envox.parse(content);
 
-console.log(env.FULL_URL); // "https://api.example.com/v1/users"
+if (result.ok) {
+  console.log(result.data.FULL_URL); // "https://api.example.com/v1/users"
+}
 ```
 
 ## Quote Handling
@@ -419,10 +432,14 @@ const content = `
   ESCAPED="value with \\"quotes\\""
 `;
 
-const env = await envToObject(content);
-console.log(env.SINGLE);  // "value with spaces"
-console.log(env.DOUBLE);  // "value with $pecial chars"
-console.log(env.ESCAPED); // "value with "quotes""
+const envox = new Envox();
+const result = await envox.parse(content);
+
+if (result.ok) {
+  console.log(result.data.SINGLE);  // "value with spaces"
+  console.log(result.data.DOUBLE);  // "value with $pecial chars"
+  console.log(result.data.ESCAPED); // "value with "quotes""
+}
 ```
 
 ## Error Handling
@@ -430,13 +447,14 @@ console.log(env.ESCAPED); // "value with "quotes""
 Envox provides detailed error information for both parsing and validation errors:
 
 ```typescript
-const result = await parseEnv(`
+const envox = new Envox();
+const result = await envox.parse(`
   VALID_VAR=okay
   123_INVALID=bad
   ANOTHER=fine
 `);
 
-if (!result.isValid) {
+if (!result.ok) {
   result.errors.forEach(error => {
     console.log(`Line ${error.line}: ${error.message}`);
     console.log(`Content: ${error.content}`);
@@ -450,18 +468,20 @@ When using schemas, validation errors are included in the errors array:
 
 ```typescript
 import { z } from 'zod';
+import { Envox } from 'envox';
 
 const schema = z.object({
   PORT: z.coerce.number().min(1000),
   API_KEY: z.string().min(10)
 });
 
-const result = await parseEnv(`
+const envox = new Envox({ schema });
+const result = await envox.parse(`
   PORT=80
   API_KEY=short
-`, { schema });
+`);
 
-if (!result.isValid) {
+if (!result.ok) {
   result.errors.forEach(error => {
     if (error.line === 0) {
       console.log(`Validation error: ${error.message}`);
@@ -477,40 +497,46 @@ if (!result.isValid) {
 ### Basic Usage
 
 ```typescript
-import { envToObject } from 'envox';
+import { Envox } from 'envox';
 
-const env = await envToObject(`
+const envox = new Envox();
+const result = await envox.parse(`
   NODE_ENV=development
   PORT=3000
   DATABASE_URL=postgres://localhost/mydb
 `);
 
-// Use in your application
-const server = createServer();
-server.listen(env.PORT);
+if (result.ok) {
+  // Use in your application
+  const server = createServer();
+  server.listen(parseInt(result.data.PORT));
+}
 ```
 
 ### With Variable Expansion
 
 ```typescript
-import { parseEnv } from 'envox';
+import { Envox } from 'envox';
 
-const result = await parseEnv(`
+const envox = new Envox({ expandVariables: true });
+const result = await envox.parse(`
   APP_NAME=myapp
   VERSION=1.0.0
   IMAGE_TAG=${APP_NAME}:${VERSION}
   CONTAINER_NAME=${APP_NAME}-container
-`, { expandVariables: true });
+`);
 
-console.log(result.variables.find(v => v.key === 'IMAGE_TAG')?.value);
-// "myapp:1.0.0"
+if (result.ok) {
+  console.log(result.data.IMAGE_TAG); // "myapp:1.0.0"
+  console.log(result.vars.find(v => v.key === 'IMAGE_TAG')?.value); // "myapp:1.0.0"
+}
 ```
 
 ### Comprehensive Example with Zod
 
 ```typescript
 import { z } from 'zod';
-import { envToObject } from 'envox';
+import { Envox } from 'envox';
 
 // Define a comprehensive schema
 const AppConfigSchema = z.object({
@@ -548,10 +574,11 @@ const envContent = `
   ENABLE_METRICS=true
 `;
 
-try {
-  const config: AppConfig = await envToObject(envContent, { 
-    schema: AppConfigSchema 
-  });
+const envox = new Envox({ schema: AppConfigSchema });
+const result = await envox.parse(envContent);
+
+if (result.ok) {
+  const config: AppConfig = result.data;
   
   console.log('Configuration loaded successfully:');
   console.log(`Server will run on ${config.HOST}:${config.PORT}`);
@@ -560,8 +587,9 @@ try {
   
   // All values are properly typed and validated
   startServer(config);
-} catch (error) {
-  console.error('Failed to load configuration:', error.message);
+} else {
+  console.error('Failed to load configuration:');
+  result.errors.forEach(error => console.error(error.message));
   process.exit(1);
 }
 
@@ -575,7 +603,7 @@ function startServer(config: AppConfig) {
 
 ```typescript
 import { z } from 'zod';
-import { parseEnv } from 'envox';
+import { Envox } from 'envox';
 
 const AdvancedSchema = z.object({
   // Transform comma-separated values to array
@@ -600,18 +628,19 @@ const AdvancedSchema = z.object({
   CACHE_TTL: z.coerce.number().min(60).max(86400)
 });
 
-const result = await parseEnv(`
+const envox = new Envox({ schema: AdvancedSchema });
+const result = await envox.parse(`
   ALLOWED_ORIGINS=https://example.com, https://app.example.com
   FEATURE_FLAGS={"newUI": true, "betaFeatures": false}
   LOG_LEVEL=info
   DEPLOYMENT_DATE=2024-01-15T10:30:00Z
   CACHE_TTL=3600
-`, { schema: AdvancedSchema });
+`);
 
-if (result.isValid && result.env) {
-  console.log(result.env.ALLOWED_ORIGINS); // ['https://example.com', 'https://app.example.com']
-  console.log(result.env.FEATURE_FLAGS);   // { newUI: true, betaFeatures: false }
-  console.log(result.env.DEPLOYMENT_DATE); // Date object
+if (result.ok) {
+  console.log(result.data.ALLOWED_ORIGINS); // ['https://example.com', 'https://app.example.com']
+  console.log(result.data.FEATURE_FLAGS);   // { newUI: true, betaFeatures: false }
+  console.log(result.data.DEPLOYMENT_DATE); // Date object
 }
 ```
 
@@ -619,7 +648,7 @@ if (result.isValid && result.env) {
 
 ```typescript
 import { z } from 'zod';
-import { parseEnv } from 'envox';
+import { Envox } from 'envox';
 
 const StrictSchema = z.object({
   API_URL: z.string().url('Must be a valid URL'),
@@ -632,12 +661,13 @@ const problematicEnv = `
   API_URL=not-a-url
   MAX_RETRIES=20
   TIMEOUT_MS=50
-  INVALID_KEY=value
+  123_INVALID=value
 `;
 
-const result = await parseEnv(problematicEnv, { schema: StrictSchema });
+const envox = new Envox({ schema: StrictSchema });
+const result = await envox.parse(problematicEnv);
 
-if (!result.isValid) {
+if (!result.ok) {
   console.log('Environment validation failed:');
   
   result.errors.forEach((error, index) => {
@@ -649,7 +679,7 @@ if (!result.isValid) {
   });
   
   // Output might be:
-  // 1. Parse error (line 6): Invalid environment variable key: INVALID_KEY
+  // 1. Parse error (line 6): Invalid environment variable key: 123_INVALID
   // 2. Validation error: Must be a valid URL
   // 3. Validation error: Number must be less than or equal to 10
   // 4. Validation error: Number must be greater than or equal to 100
@@ -662,7 +692,7 @@ Envox provides excellent TypeScript support with full type inference when using 
 
 ```typescript
 import { z } from 'zod';
-import { envToObject } from 'envox';
+import { Envox } from 'envox';
 
 const ConfigSchema = z.object({
   API_KEY: z.string(),
@@ -670,14 +700,19 @@ const ConfigSchema = z.object({
   DEBUG: z.coerce.boolean()
 });
 
-// Type is automatically inferred as:
-// { API_KEY: string; PORT: number; DEBUG: boolean; }
-const config = await envToObject(envContent, { schema: ConfigSchema });
+const envox = new Envox({ schema: ConfigSchema });
+const result = await envox.parse(envContent);
 
-// TypeScript knows the exact types
-config.PORT.toFixed(2);     // ✅ number method
-config.DEBUG ? 'yes' : 'no'; // ✅ boolean
-config.API_KEY.toLowerCase(); // ✅ string method
+if (result.ok) {
+  // Type is automatically inferred as:
+  // { API_KEY: string; PORT: number; DEBUG: boolean; }
+  const config = result.data;
+
+  // TypeScript knows the exact types
+  config.PORT.toFixed(2);     // ✅ number method
+  config.DEBUG ? 'yes' : 'no'; // ✅ boolean
+  config.API_KEY.toLowerCase(); // ✅ string method
+}
 ```
 
 ## Performance
@@ -691,11 +726,13 @@ Envox is designed to be fast and lightweight:
 
 ```typescript
 // For performance-critical applications, you can skip validation
-const fastParse = await envToObject(content); // No schema = faster parsing
+const fastEnvox = new Envox(); // No schema = faster parsing
+const result = await fastEnvox.parse(content);
 
 // Or use validation only in development
 const schema = process.env.NODE_ENV === 'development' ? MySchema : undefined;
-const config = await envToObject(content, { schema });
+const envox = new Envox({ schema });
+const result = await envox.parse(content);
 ```
 
 ## Contributing
