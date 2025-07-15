@@ -1,12 +1,25 @@
-// tests/envox.test.ts
 import { describe, it, expect } from 'vitest';
+import type { StandardSchemaV1 } from '@standard-schema/spec';
 import { Envox, parseEnv, objectToEnv, envToObject } from '@/index';
+
+// Mock schema for testing
+const createMockSchema = <T>(
+  validate: (
+    value: unknown
+  ) => StandardSchemaV1.Result<T> | Promise<StandardSchemaV1.Result<T>>
+): StandardSchemaV1<Record<string, string>, T> => ({
+  '~standard': {
+    version: 1,
+    vendor: 'test',
+    validate,
+  },
+});
 
 describe('Envox basic parsing', () => {
   const parser = new Envox({ expandVariables: true });
 
-  it('parses simple key=value pairs', () => {
-    const result = parser.parse('FOO=bar\nBAZ=qux');
+  it('parses simple key=value pairs', async () => {
+    const result = await parser.parse('FOO=bar\nBAZ=qux');
     expect(result.isValid).toBe(true);
     const vars = Object.fromEntries(
       result.variables.map((v) => [v.key, v.value])
@@ -14,7 +27,7 @@ describe('Envox basic parsing', () => {
     expect(vars).toEqual({ FOO: 'bar', BAZ: 'qux' });
   });
 
-  it('ignores empty lines and comments when allowed', () => {
+  it('ignores empty lines and comments when allowed', async () => {
     const content = `
       # comment
       FOO=1
@@ -22,34 +35,34 @@ describe('Envox basic parsing', () => {
       # another
       BAR=2
     `;
-    const r = new Envox({ allowComments: true }).parse(content);
+    const r = await new Envox({ allowComments: true }).parse(content);
     expect(r.isValid).toBe(true);
     expect(r.variables.map((v) => v.key)).toEqual(['FOO', 'BAR']);
   });
 
-  it('supports export prefix', () => {
-    const r = new Envox({ allowExport: true }).parse('export X=42');
+  it('supports export prefix', async () => {
+    const r = await new Envox({ allowExport: true }).parse('export X=42');
     expect(r.isValid).toBe(true);
     expect(r.variables[0]!.key).toBe('X');
   });
 
-  it('trims values when trimValues=true', () => {
-    const r = new Envox({ trimValues: true }).parse('X=  spaced  ');
+  it('trims values when trimValues=true', async () => {
+    const r = await new Envox({ trimValues: true }).parse('X=  spaced  ');
     expect(r.variables[0]!.value).toBe('spaced');
   });
 
-  it('handles single and double quotes in values', () => {
-    const r = new Envox().parse(`A="hello world"\nB='hi there'`);
+  it('handles single and double quotes in values', async () => {
+    const r = await new Envox().parse(`A="hello world"\nB='hi there'`);
     const vars = Object.fromEntries(r.variables.map((v) => [v.key, v.value]));
     expect(vars).toEqual({ A: 'hello world', B: 'hi there' });
   });
 });
 
 describe('Envox variable expansion', () => {
-  it('expands ${VAR} and $VAR', () => {
+  it('expands ${VAR} and $VAR', async () => {
     const p = new Envox({ expandVariables: true });
     const input = ['FOO=foo', 'BAR=${FOO}-bar', 'BAZ=$BAR-baz'].join('\n');
-    const r = p.parse(input);
+    const r = await p.parse(input);
     expect(r.isValid).toBe(true);
     const vars = Object.fromEntries(r.variables.map((v) => [v.key, v.value]));
     expect(vars.FOO).toBe('foo');
@@ -59,27 +72,158 @@ describe('Envox variable expansion', () => {
 });
 
 describe('Error handling', () => {
-  it('rejects invalid keys', () => {
+  it('rejects invalid keys', async () => {
     const parser = new Envox();
-    const r = parser.parse('1ABC=hi');
+    const r = await parser.parse('1ABC=hi');
     expect(r.isValid).toBe(false);
     expect(r.errors[0]!.message).toMatch(/Invalid environment variable key/);
   });
 
-  it('aborts on missing equals when allowEmpty=false', () => {
+  it('aborts on missing equals when allowEmpty=false', async () => {
     const parser = new Envox({ allowEmpty: false });
-    const r = parser.parse('NO_EQUALS');
+    const r = await parser.parse('NO_EQUALS');
     expect(r.isValid).toBe(false);
     expect(r.errors[0]!.message).toContain('Missing equals sign');
   });
 });
 
+describe('Schema validation', () => {
+  interface Config extends Record<string, any> {
+    PORT: number;
+    DEBUG: boolean;
+    API_KEY: string;
+  }
+
+  const successSchema = createMockSchema<Config>((value) => {
+    const obj = value as Record<string, string>;
+
+    // Mock validation logic
+    if (!obj.PORT || !obj.API_KEY) {
+      return {
+        issues: [
+          { message: 'PORT is required' },
+          { message: 'API_KEY is required' },
+        ],
+      };
+    }
+
+    const port = parseInt(obj.PORT, 10);
+    if (isNaN(port)) {
+      return {
+        issues: [{ message: 'PORT must be a number' }],
+      };
+    }
+
+    return {
+      value: {
+        PORT: port,
+        DEBUG: obj.DEBUG === 'true',
+        API_KEY: obj.API_KEY,
+      },
+    };
+  });
+
+  const failureSchema = createMockSchema<Config>(() => ({
+    issues: [
+      { message: 'Validation failed', path: ['PORT'] },
+      { message: 'Another error', path: [{ key: 'API_KEY' }] },
+    ],
+  }));
+
+  it('validates successfully with schema', async () => {
+    const parser = new Envox({ schema: successSchema });
+    const content = 'PORT=3000\nDEBUG=true\nAPI_KEY=secret';
+    const result = await parser.parse(content);
+
+    expect(result.isValid).toBe(true);
+    expect(result.env).toEqual({
+      PORT: 3000,
+      DEBUG: true,
+      API_KEY: 'secret',
+    });
+  });
+
+  it('handles validation errors', async () => {
+    const parser = new Envox({ schema: failureSchema });
+    const content = 'PORT=3000\nAPI_KEY=secret';
+    const result = await parser.parse(content);
+
+    expect(result.isValid).toBe(false);
+    expect(result.errors).toHaveLength(2);
+    expect(result.errors[0]!.message).toBe('Validation failed');
+    expect(result.errors[1]!.message).toBe('Another error');
+  });
+
+  it('works without schema (backward compatibility)', async () => {
+    const parser = new Envox();
+    const content = 'FOO=bar\nBAZ=qux';
+    const result = await parser.parse(content);
+
+    expect(result.isValid).toBe(true);
+    expect(result.env).toBeUndefined();
+    expect(result.variables).toHaveLength(2);
+  });
+});
+
 describe('Helper utilities', () => {
-  it('toObject and fromObject round-trip properly', () => {
+  it('toObject and fromObject round-trip properly', async () => {
     const obj = { A: '1', B: 'two words', C: 'special$char' };
     const str = objectToEnv(obj, true);
-    const back = parseEnv(str);
+    const back = await parseEnv(str);
     expect(back.isValid).toBe(true);
-    expect(envToObject(str)).toEqual(obj);
+    expect(await envToObject(str)).toEqual(obj);
+  });
+
+  it('envToObject with schema validation', async () => {
+    interface SimpleConfig {
+      NAME: string;
+      COUNT: number;
+    }
+
+    const schema = createMockSchema<SimpleConfig>((value) => {
+      const obj = value as Record<string, string>;
+      return {
+        value: {
+          NAME: obj.NAME || '',
+          COUNT: parseInt(obj.COUNT || '0', 10),
+        },
+      };
+    });
+
+    const content = 'NAME=test\nCOUNT=42';
+    const result = await envToObject(content, { schema });
+
+    expect(result).toEqual({
+      NAME: 'test',
+      COUNT: 42,
+    });
+  });
+
+  it('envToObject throws on validation failure', async () => {
+    const schema = createMockSchema(() => ({
+      issues: [{ message: 'Validation failed' }],
+    }));
+
+    const content = 'NAME=test';
+
+    await expect(envToObject(content, { schema })).rejects.toThrow(
+      'Invalid environment file'
+    );
+  });
+});
+
+describe('Async schema support', () => {
+  it('handles async schema validation', async () => {
+    const asyncSchema = createMockSchema<{ VALUE: string }>(async (value) => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      const obj = value as Record<string, string>;
+      return { value: { VALUE: obj.VALUE || '' } };
+    });
+
+    const parser = new Envox({ schema: asyncSchema });
+    const result = await parser.parse('VALUE=test');
+
+    expect(result.isValid).toBe(true);
+    expect(result.env).toEqual({ VALUE: 'test' });
   });
 });
