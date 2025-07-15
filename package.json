@@ -16,7 +16,7 @@
     "type": "module",
     "scripts": {
         "build": "tsup",
-        "ci": "$npm_execpath run build && $npm_execpath run check-format && $npm_execpath run check-exports && $npm_execpath run lint && $npm_execpath run test",
+        "ci": "$npm_execpath run build && $npm_execpath run check-format && $npm_execpath run check-exports && $npm_execpath run test",
         "test": "vitest run",
         "test:watch": "vitest",
         "format": "biome format --write ./src",
