@@ -3,7 +3,7 @@ import type {
   EnvoxParseError,
   EnvoxParseResult,
   EnvVariable,
-} from '@/types';
+} from "@/types";
 
 const VAR_EXPANSION_REGEX = /\$\{([^}]+)\}|\$([A-Za-z_][A-Za-z0-9_]*)/g;
 const VALID_KEY_REGEX = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -23,7 +23,7 @@ export class Envox {
   }
 
   parse(content: string): EnvoxParseResult {
-    const lines = content.split('\n');
+    const lines = content.split("\n");
     const variables: EnvVariable[] = [];
     const errors: EnvoxParseError[] = [];
     const envMap = new Map<string, string>();
@@ -44,7 +44,7 @@ export class Envox {
         errors.push({
           line: lineNumber,
           message:
-            error instanceof Error ? error.message : 'Envox: Unknown error',
+            error instanceof Error ? error.message : "Envox: Unknown error",
           content: line,
         });
       }
@@ -60,26 +60,26 @@ export class Envox {
   private parseLine(
     line: string,
     lineNumber: number,
-    envMap: Map<string, string>
+    envMap: Map<string, string>,
   ): EnvVariable | null {
     const trimmedLine = line.trim();
 
     if (!trimmedLine) {
       return null;
     }
-    if (this.options.allowComments && trimmedLine.startsWith('#')) {
+    if (this.options.allowComments && trimmedLine.startsWith("#")) {
       return null;
     }
 
     let processedLine = trimmedLine;
-    if (this.options.allowExport && trimmedLine.startsWith('export ')) {
+    if (this.options.allowExport && trimmedLine.startsWith("export ")) {
       processedLine = trimmedLine.substring(7);
     }
 
-    const equalsIndex = processedLine.indexOf('=');
+    const equalsIndex = processedLine.indexOf("=");
     if (equalsIndex === -1) {
       if (!this.options.allowEmpty) {
-        throw new Error('Missing equals sign');
+        throw new Error("Missing equals sign");
       }
       return null;
     }
@@ -120,7 +120,7 @@ export class Envox {
     const trimmed = value.trim();
 
     if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
-      return trimmed.slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+      return trimmed.slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, "\\");
     }
 
     if (trimmed.startsWith("'") && trimmed.endsWith("'")) {
@@ -133,16 +133,16 @@ export class Envox {
   private expandVariables(value: string, envMap: Map<string, string>): string {
     return value.replace(VAR_EXPANSION_REGEX, (_match, braced, simple) => {
       const varName = braced || simple;
-      return envMap.get(varName) || '';
+      return envMap.get(varName) || "";
     });
   }
 
   private isValidKey(key: string): boolean {
-    return VALID_KEY_REGEX.test(key) && !key.includes(' ');
+    return VALID_KEY_REGEX.test(key) && !key.includes(" ");
   }
 
   static isEnvFile(content: string): boolean {
-    const lines = content.split('\n').filter((line) => line.trim());
+    const lines = content.split("\n").filter((line) => line.trim());
 
     if (lines.length === 0) return false;
 
@@ -152,7 +152,7 @@ export class Envox {
     for (const line of lines) {
       const trimmed = line.trim();
 
-      if (trimmed.startsWith('#')) continue;
+      if (trimmed.startsWith("#")) continue;
 
       totalLines++;
 
@@ -165,9 +165,9 @@ export class Envox {
   }
 
   private static looksLikeEnvVar(line: string): boolean {
-    const cleaned = line.replace(/^\s*export\s+/, '');
+    const cleaned = line.replace(/^\s*export\s+/, "");
 
-    const equalsIndex = cleaned.indexOf('=');
+    const equalsIndex = cleaned.indexOf("=");
     if (equalsIndex === -1) return false;
 
     const key = cleaned.substring(0, equalsIndex).trim();
@@ -184,9 +184,9 @@ export class Envox {
 
   static fromObject(
     obj: Record<string, string>,
-    includeExport = false
+    includeExport = false,
   ): string {
-    const prefix = includeExport ? 'export ' : '';
+    const prefix = includeExport ? "export " : "";
     return Object.entries(obj)
       .map(([key, value]) => {
         const quotedValue = NEED_QUOTES_REGEX.test(value)
@@ -194,13 +194,13 @@ export class Envox {
           : value;
         return `${prefix}${key}=${quotedValue}`;
       })
-      .join('\n');
+      .join("\n");
   }
 }
 
 export function parseEnv(
   content: string,
-  options?: EnvoxOptions
+  options?: EnvoxOptions,
 ): EnvoxParseResult {
   const parser = new Envox(options);
   return parser.parse(content);
@@ -212,14 +212,14 @@ export function isEnvFile(content: string): boolean {
 
 export function envToObject(
   content: string,
-  options?: EnvoxOptions
+  options?: EnvoxOptions,
 ): Record<string, string> {
   const result = parseEnv(content, options);
   if (!result.isValid) {
     throw new Error(
       `Invalid environment file: ${result.errors
         .map((e) => e.message)
-        .join(', ')}`
+        .join(", ")}`,
     );
   }
   return Envox.toObject(result.variables);
@@ -227,7 +227,7 @@ export function envToObject(
 
 export function objectToEnv(
   obj: Record<string, string>,
-  includeExport = false
+  includeExport = false,
 ): string {
   return Envox.fromObject(obj, includeExport);
 }
