@@ -1,5 +1,11 @@
 # envox
 
+## 0.0.8
+
+### Patch Changes
+
+- [#10](https://github.com/johnie/envox/pull/10) [`b18b0b0`](https://github.com/johnie/envox/commit/b18b0b0f2a49c8d6141f10cc6a617a12ee7a0e18) Thanks [@johnie](https://github.com/johnie)! - Refactor the library to be functional instead of a class.
+
 ## 0.0.7
 
 ### Patch Changes
