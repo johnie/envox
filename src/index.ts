@@ -1,18 +1,18 @@
-import type { StandardSchemaV1 } from "@standard-schema/spec";
+import type { StandardSchemaV1 } from '@standard-schema/spec';
 import type {
   EnvoxOptions,
   EnvoxParseError,
   EnvoxParseResult,
   EnvVariable,
-} from "@/types";
+} from '@/types';
 
 const VAR_EXPANSION_REGEX = /\$\{([^}]+)\}|\$([A-Za-z_][A-Za-z0-9_]*)/g;
 const VALID_KEY_REGEX = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const NEED_QUOTES_REGEX = /[\s"'$\\]/;
 
 export class Envox {
-  private options: Required<Omit<EnvoxOptions, "schema">> &
-    Pick<EnvoxOptions, "schema">;
+  private options: Required<Omit<EnvoxOptions, 'schema'>> &
+    Pick<EnvoxOptions, 'schema'>;
 
   constructor(options: EnvoxOptions = {}) {
     this.options = {
@@ -26,32 +26,49 @@ export class Envox {
   }
 
   async parse<T = Record<string, string>>(
-    content: string,
+    source: string | Record<string, string | undefined>,
   ): Promise<EnvoxParseResult<T>> {
-    const lines = content.split("\n");
     const variables: EnvVariable[] = [];
     const errors: EnvoxParseError[] = [];
     const envMap = new Map<string, string>();
 
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      const lineNumber = i + 1;
+    if (typeof source === 'string') {
+      const lines = source.split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const lineNumber = i + 1;
 
-      if (line === undefined) continue;
+        if (line === undefined) continue;
 
-      try {
-        const result = this.parseLine(line, lineNumber, envMap);
-        if (result) {
-          variables.push(result);
-          envMap.set(result.key, result.value);
+        try {
+          const result = this.parseLine(line, lineNumber, envMap);
+          if (result) {
+            variables.push(result);
+            envMap.set(result.key, result.value);
+          }
+        } catch (error) {
+          errors.push({
+            line: lineNumber,
+            message:
+              error instanceof Error ? error.message : 'Envox: Unknown error',
+            content: line,
+          });
         }
-      } catch (error) {
-        errors.push({
-          line: lineNumber,
-          message:
-            error instanceof Error ? error.message : "Envox: Unknown error",
-          content: line,
-        });
+      }
+    } else if (typeof source === 'object' && source !== null) {
+      const tempMap = new Map<string, string>();
+      for (const [key, value] of Object.entries(source)) {
+        if (this.isValidKey(key) && value !== undefined) {
+          tempMap.set(key, value);
+        }
+      }
+
+      for (const [key, value] of tempMap.entries()) {
+        const expandedValue = this.options.expandVariables
+          ? this.expandVariables(value, tempMap)
+          : value;
+        envMap.set(key, expandedValue);
+        variables.push({ key, value: expandedValue, line: 0 });
       }
     }
 
@@ -86,16 +103,16 @@ export class Envox {
     { success: true; data: T } | { success: false; errors: EnvoxParseError[] }
   > {
     try {
-      const validation = await schema["~standard"].validate(obj);
+      const validation = await schema['~standard'].validate(obj);
 
-      if ("issues" in validation) {
+      if ('issues' in validation) {
         const errors: EnvoxParseError[] =
           validation.issues?.map((issue) => ({
             line: 0,
             message: issue.message,
             content: issue.path
               ? `Path: ${this.formatPath(issue.path)}`
-              : "Schema validation failed",
+              : 'Schema validation failed',
           })) || [];
 
         return { success: false, errors };
@@ -111,8 +128,8 @@ export class Envox {
             message:
               error instanceof Error
                 ? error.message
-                : "Schema validation failed",
-            content: "Schema validation error",
+                : 'Schema validation failed',
+            content: 'Schema validation error',
           },
         ],
       };
@@ -124,12 +141,12 @@ export class Envox {
   ): string {
     return path
       .map((segment) => {
-        if (typeof segment === "object" && "key" in segment) {
+        if (typeof segment === 'object' && 'key' in segment) {
           return String(segment.key);
         }
         return String(segment);
       })
-      .join(".");
+      .join('.');
   }
 
   private parseLine(
@@ -142,19 +159,19 @@ export class Envox {
     if (!trimmedLine) {
       return null;
     }
-    if (this.options.allowComments && trimmedLine.startsWith("#")) {
+    if (this.options.allowComments && trimmedLine.startsWith('#')) {
       return null;
     }
 
     let processedLine = trimmedLine;
-    if (this.options.allowExport && trimmedLine.startsWith("export ")) {
+    if (this.options.allowExport && trimmedLine.startsWith('export ')) {
       processedLine = trimmedLine.substring(7);
     }
 
-    const equalsIndex = processedLine.indexOf("=");
+    const equalsIndex = processedLine.indexOf('=');
     if (equalsIndex === -1) {
       if (!this.options.allowEmpty) {
-        throw new Error("Missing equals sign");
+        throw new Error('Missing equals sign');
       }
       return null;
     }
@@ -195,7 +212,7 @@ export class Envox {
     const trimmed = value.trim();
 
     if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
-      return trimmed.slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, "\\");
+      return trimmed.slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, '\\');
     }
 
     if (trimmed.startsWith("'") && trimmed.endsWith("'")) {
@@ -208,16 +225,16 @@ export class Envox {
   private expandVariables(value: string, envMap: Map<string, string>): string {
     return value.replace(VAR_EXPANSION_REGEX, (_match, braced, simple) => {
       const varName = braced || simple;
-      return envMap.get(varName) || "";
+      return envMap.get(varName) || '';
     });
   }
 
   private isValidKey(key: string): boolean {
-    return VALID_KEY_REGEX.test(key) && !key.includes(" ");
+    return VALID_KEY_REGEX.test(key) && !key.includes(' ');
   }
 
   static isEnvFile(content: string): boolean {
-    const lines = content.split("\n").filter((line) => line.trim());
+    const lines = content.split('\n').filter((line) => line.trim());
 
     if (lines.length === 0) return false;
 
@@ -227,7 +244,7 @@ export class Envox {
     for (const line of lines) {
       const trimmed = line.trim();
 
-      if (trimmed.startsWith("#")) continue;
+      if (trimmed.startsWith('#')) continue;
 
       totalLines++;
 
@@ -240,9 +257,9 @@ export class Envox {
   }
 
   private static looksLikeEnvVar(line: string): boolean {
-    const cleaned = line.replace(/^\s*export\s+/, "");
+    const cleaned = line.replace(/^\s*export\s+/, '');
 
-    const equalsIndex = cleaned.indexOf("=");
+    const equalsIndex = cleaned.indexOf('=');
     if (equalsIndex === -1) return false;
 
     const key = cleaned.substring(0, equalsIndex).trim();
@@ -261,7 +278,7 @@ export class Envox {
     obj: Record<string, string>,
     includeExport = false,
   ): string {
-    const prefix = includeExport ? "export " : "";
+    const prefix = includeExport ? 'export ' : '';
     return Object.entries(obj)
       .map(([key, value]) => {
         const quotedValue = NEED_QUOTES_REGEX.test(value)
@@ -269,17 +286,16 @@ export class Envox {
           : value;
         return `${prefix}${key}=${quotedValue}`;
       })
-      .join("\n");
+      .join('\n');
   }
 }
 
-// Convenience functions
 export async function parseEnv<T = Record<string, string>>(
-  content: string,
+  source: string | Record<string, string | undefined>,
   options?: EnvoxOptions<T>,
 ): Promise<EnvoxParseResult<T>> {
   const parser = new Envox(options as EnvoxOptions);
-  return parser.parse<T>(content);
+  return parser.parse<T>(source);
 }
 
 export function isEnvFile(content: string): boolean {
@@ -287,15 +303,15 @@ export function isEnvFile(content: string): boolean {
 }
 
 export async function envToObject<T = Record<string, string>>(
-  content: string,
+  source: string | Record<string, string | undefined>,
   options?: EnvoxOptions<T>,
 ): Promise<T extends Record<string, string> ? Record<string, string> : T> {
-  const result = await parseEnv(content, options);
+  const result = await parseEnv(source, options);
   if (!result.isValid) {
     throw new Error(
       `Invalid environment file: ${result.errors
         .map((e) => e.message)
-        .join(", ")}`,
+        .join(', ')}`,
     );
   }
 

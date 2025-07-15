@@ -1,4 +1,4 @@
-import type { StandardSchemaV1 } from "@standard-schema/spec";
+import type { StandardSchemaV1 } from '@standard-schema/spec';
 
 export interface EnvVariable {
   key: string;
@@ -30,13 +30,13 @@ export interface EnvoxOptions<T = Record<string, string>> {
 }
 
 export interface EnvoxValidationError {
-  type: "validation";
+  type: 'validation';
   message: string;
   path?: ReadonlyArray<PropertyKey | StandardSchemaV1.PathSegment>;
 }
 
 export interface EnvoxError extends EnvoxParseError {
-  type: "parse";
+  type: 'parse';
 }
 
 export type EnvoxAllErrors = EnvoxError | EnvoxValidationError;

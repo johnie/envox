@@ -27,5 +27,10 @@
         "rules": {
             "recommended": true
         }
+    },
+    "javascript": {
+        "formatter": {
+            "quoteStyle": "single"
+        }
     }
 }

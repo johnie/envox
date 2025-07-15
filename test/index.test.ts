@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 import { Envox, parseEnv, objectToEnv, envToObject } from '@/index';
 
@@ -225,5 +225,83 @@ describe('Async schema support', () => {
 
     expect(result.isValid).toBe(true);
     expect(result.env).toEqual({ VALUE: 'test' });
+  });
+});
+
+describe('process.env parsing', () => {
+  const originalEnv = { ...process.env };
+
+  beforeEach(() => {
+    process.env = { ...originalEnv };
+  });
+
+  afterAll(() => {
+    process.env = { ...originalEnv };
+  });
+
+  it('should parse variables directly from process.env', async () => {
+    process.env.PROC_VAR_1 = 'hello';
+    process.env.PROC_VAR_2 = 'world';
+
+    const result = await envToObject(process.env);
+
+    expect(result.PROC_VAR_1).toBe('hello');
+    expect(result.PROC_VAR_2).toBe('world');
+  });
+
+  it('should ignore undefined values in process.env', async () => {
+    process.env.DEFINED_VAR = 'is here';
+    process.env.UNDEFINED_VAR = undefined;
+
+    const result = await envToObject(process.env);
+
+    expect(result.DEFINED_VAR).toBe('is here');
+    expect(result).not.toHaveProperty('UNDEFINED_VAR');
+  });
+
+  it('should validate process.env with a schema and transform types', async () => {
+    process.env.PORT = '8080';
+    process.env.NODE_ENV = 'development';
+
+    const schema = createMockSchema<{ PORT: number; NODE_ENV: string }>(
+      (value) => {
+        const obj = value as Record<string, string>;
+        return {
+          value: {
+            PORT: parseInt(obj.PORT || '0', 10),
+            NODE_ENV: obj.NODE_ENV || 'test',
+          },
+        };
+      }
+    );
+
+    const result = await envToObject(process.env, { schema });
+
+    expect(result.PORT).toBe(8080);
+    expect(result.NODE_ENV).toBe('development');
+    expect(typeof result.PORT).toBe('number');
+  });
+
+  it('should expand variables that reference other variables in process.env', async () => {
+    process.env.API_HOST = 'api.example.com';
+    process.env.API_URL = 'https://${API_HOST}/v1';
+
+    const result = await envToObject(process.env, { expandVariables: true });
+
+    expect(result.API_URL).toBe('https://api.example.com/v1');
+  });
+
+  it('should return a detailed parse result when using parseEnv with process.env', async () => {
+    process.env.KEY1 = 'VALUE1';
+
+    const result = await parseEnv(process.env);
+
+    expect(result.isValid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+
+    const variable = result.variables.find((v) => v.key === 'KEY1');
+    expect(variable).toBeDefined();
+    expect(variable?.value).toBe('VALUE1');
+    expect(variable?.line).toBe(0);
   });
 });
