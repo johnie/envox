@@ -1,15 +1,14 @@
 import { describe, it, expect, vi } from 'vitest';
-import { Envox, isEnvFile, toObject, fromObject } from '@/index';
+import { parseEnv, isEnvFile, toObject, fromObject } from '@/index';
 import { expandValue } from '@/expansions';
 import { EnvoxError } from '@/errors';
 import { REGEX } from '@/constants';
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 
-describe('Envox', () => {
+describe('parseEnv', () => {
   describe('basic parsing', () => {
     it('should parse simple key-value pairs', async () => {
-      const envox = new Envox();
-      const result = await envox.parse('KEY=value\nANOTHER=test');
+      const result = await parseEnv('KEY=value\nANOTHER=test');
 
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -27,8 +26,7 @@ describe('Envox', () => {
     });
 
     it('should handle empty lines', async () => {
-      const envox = new Envox();
-      const result = await envox.parse('KEY=value\n\nANOTHER=test\n');
+      const result = await parseEnv('KEY=value\n\nANOTHER=test\n');
 
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -41,9 +39,9 @@ describe('Envox', () => {
     });
 
     it('should handle comments when allowComments is true', async () => {
-      const envox = new Envox({ allowComments: true });
-      const result = await envox.parse(
-        '# This is a comment\nKEY=value\n# Another comment'
+      const result = await parseEnv(
+        '# This is a comment\nKEY=value\n# Another comment',
+        { allowComments: true }
       );
 
       expect(result.ok).toBe(true);
@@ -54,8 +52,9 @@ describe('Envox', () => {
     });
 
     it('should handle export statements when allowExport is true', async () => {
-      const envox = new Envox({ allowExport: true });
-      const result = await envox.parse('export KEY=value\nexport ANOTHER=test');
+      const result = await parseEnv('export KEY=value\nexport ANOTHER=test', {
+        allowExport: true,
+      });
 
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -67,8 +66,7 @@ describe('Envox', () => {
     });
 
     it('should parse object input', async () => {
-      const envox = new Envox();
-      const result = await envox.parse({ KEY: 'value', ANOTHER: 'test' });
+      const result = await parseEnv({ KEY: 'value', ANOTHER: 'test' });
 
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -81,8 +79,7 @@ describe('Envox', () => {
     });
 
     it('should filter out undefined values from object input', async () => {
-      const envox = new Envox();
-      const result = await envox.parse({ KEY: 'value', UNDEFINED: undefined });
+      const result = await parseEnv({ KEY: 'value', UNDEFINED: undefined });
 
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -94,8 +91,7 @@ describe('Envox', () => {
 
   describe('options', () => {
     it('should trim values when trimValues is true', async () => {
-      const envox = new Envox({ trimValues: true });
-      const result = await envox.parse('KEY=  value  ');
+      const result = await parseEnv('KEY=  value  ', { trimValues: true });
 
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -104,8 +100,9 @@ describe('Envox', () => {
     });
 
     it('should reject lines without equals when allowEmpty is false', async () => {
-      const envox = new Envox({ allowEmpty: false });
-      const result = await envox.parse('KEY=value\nINVALID_LINE');
+      const result = await parseEnv('KEY=value\nINVALID_LINE', {
+        allowEmpty: false,
+      });
 
       expect(result.ok).toBe(false);
       if (!result.ok) {
@@ -116,10 +113,10 @@ describe('Envox', () => {
     });
 
     it('should treat comments as regular lines when allowComments is false', async () => {
-      const envox = new Envox({ allowComments: false, allowEmpty: false });
-      const result = await envox.parse(
-        'KEY=value\n# This should cause an error'
-      );
+      const result = await parseEnv('KEY=value\n# This should cause an error', {
+        allowComments: false,
+        allowEmpty: false,
+      });
 
       expect(result.ok).toBe(false);
       if (!result.ok) {
@@ -130,8 +127,7 @@ describe('Envox', () => {
     });
 
     it('should not handle export when allowExport is false', async () => {
-      const envox = new Envox({ allowExport: false });
-      const result = await envox.parse('export KEY=value');
+      const result = await parseEnv('export KEY=value', { allowExport: false });
 
       expect(result.ok).toBe(false);
       if (!result.ok) {
@@ -145,8 +141,7 @@ describe('Envox', () => {
 
   describe('quoted values', () => {
     it('should handle double-quoted values', async () => {
-      const envox = new Envox();
-      const result = await envox.parse('KEY="value with spaces"');
+      const result = await parseEnv('KEY="value with spaces"');
 
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -155,8 +150,7 @@ describe('Envox', () => {
     });
 
     it('should handle single-quoted values', async () => {
-      const envox = new Envox();
-      const result = await envox.parse("KEY='value with spaces'");
+      const result = await parseEnv("KEY='value with spaces'");
 
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -165,8 +159,7 @@ describe('Envox', () => {
     });
 
     it('should handle escaped quotes in double-quoted values', async () => {
-      const envox = new Envox();
-      const result = await envox.parse('KEY="value with \\"quotes\\""');
+      const result = await parseEnv('KEY="value with \\"quotes\\""');
 
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -175,8 +168,7 @@ describe('Envox', () => {
     });
 
     it('should handle escaped backslashes in double-quoted values', async () => {
-      const envox = new Envox();
-      const result = await envox.parse('KEY="value with \\\\ backslash"');
+      const result = await parseEnv('KEY="value with \\\\ backslash"');
 
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -185,8 +177,7 @@ describe('Envox', () => {
     });
 
     it('should not process escapes in single-quoted values', async () => {
-      const envox = new Envox();
-      const result = await envox.parse("KEY='value with \\'quotes\\''");
+      const result = await parseEnv("KEY='value with \\'quotes\\''");
 
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -197,46 +188,8 @@ describe('Envox', () => {
 
   describe('variable expansion', () => {
     it('should expand variables when expandVariables is true', async () => {
-      const envox = new Envox({ expandVariables: true });
-      const result = await envox.parse('BASE=hello\nEXPANDED=${BASE}_world');
-
-      expect(result.ok).toBe(true);
-      if (result.ok) {
-        expect(result.data).toEqual({
-          BASE: 'hello',
-          EXPANDED: 'hello_world',
-        });
-      }
-    });
-
-    it('should expand variables using simple syntax', async () => {
-      const envox = new Envox({ expandVariables: true });
-      const result = await envox.parse('BASE=hello\nEXPANDED=$BASE_world');
-
-      expect(result.ok).toBe(true);
-      if (result.ok) {
-        expect(result.data).toEqual({
-          BASE: 'hello',
-          EXPANDED: 'hello_world',
-        });
-      }
-    });
-
-    it('should handle missing variables in expansion', async () => {
-      const envox = new Envox({ expandVariables: true });
-      const result = await envox.parse('EXPANDED=${MISSING}_value');
-
-      expect(result.ok).toBe(true);
-      if (result.ok) {
-        expect(result.data.EXPANDED).toBe('_value');
-      }
-    });
-
-    it('should expand variables from object input', async () => {
-      const envox = new Envox({ expandVariables: true });
-      const result = await envox.parse({
-        BASE: 'hello',
-        EXPANDED: '${BASE}_world',
+      const result = await parseEnv('BASE=hello\nEXPANDED=${BASE}_world', {
+        expandVariables: true,
       });
 
       expect(result.ok).toBe(true);
@@ -248,9 +201,53 @@ describe('Envox', () => {
       }
     });
 
+    it('should expand variables using simple syntax', async () => {
+      const result = await parseEnv('BASE=hello\nEXPANDED=$BASE_world', {
+        expandVariables: true,
+      });
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.data).toEqual({
+          BASE: 'hello',
+          EXPANDED: 'hello_world',
+        });
+      }
+    });
+
+    it('should handle missing variables in expansion', async () => {
+      const result = await parseEnv('EXPANDED=${MISSING}_value', {
+        expandVariables: true,
+      });
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.data.EXPANDED).toBe('_value');
+      }
+    });
+
+    it('should expand variables from object input', async () => {
+      const result = await parseEnv(
+        {
+          BASE: 'hello',
+          EXPANDED: '${BASE}_world',
+        },
+        { expandVariables: true }
+      );
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.data).toEqual({
+          BASE: 'hello',
+          EXPANDED: 'hello_world',
+        });
+      }
+    });
+
     it('should not expand variables when expandVariables is false', async () => {
-      const envox = new Envox({ expandVariables: false });
-      const result = await envox.parse('BASE=hello\nEXPANDED=${BASE}_world');
+      const result = await parseEnv('BASE=hello\nEXPANDED=${BASE}_world', {
+        expandVariables: false,
+      });
 
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -264,8 +261,7 @@ describe('Envox', () => {
 
   describe('validation', () => {
     it('should reject invalid keys', async () => {
-      const envox = new Envox();
-      const result = await envox.parse('123INVALID=value');
+      const result = await parseEnv('123INVALID=value');
 
       expect(result.ok).toBe(false);
       if (!result.ok) {
@@ -277,8 +273,7 @@ describe('Envox', () => {
     });
 
     it('should reject keys with spaces', async () => {
-      const envox = new Envox();
-      const result = await envox.parse('INVALID KEY=value');
+      const result = await parseEnv('INVALID KEY=value');
 
       expect(result.ok).toBe(false);
       if (!result.ok) {
@@ -290,8 +285,7 @@ describe('Envox', () => {
     });
 
     it('should accept valid keys', async () => {
-      const envox = new Envox();
-      const result = await envox.parse(
+      const result = await parseEnv(
         'VALID_KEY=value\n_ANOTHER=test\nKEY123=value'
       );
 
@@ -321,8 +315,7 @@ describe('Envox', () => {
         },
       };
 
-      const envox = new Envox({ schema: mockSchema });
-      const result = await envox.parse('PORT=3000');
+      const result = await parseEnv('PORT=3000', { schema: mockSchema });
 
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -349,8 +342,7 @@ describe('Envox', () => {
         },
       };
 
-      const envox = new Envox({ schema: mockSchema });
-      const result = await envox.parse('OTHER=value');
+      const result = await parseEnv('OTHER=value', { schema: mockSchema });
 
       expect(result.ok).toBe(false);
       if (!result.ok) {
@@ -369,8 +361,7 @@ describe('Envox', () => {
         },
       };
 
-      const envox = new Envox({ schema: mockSchema });
-      const result = await envox.parse('KEY=value');
+      const result = await parseEnv('KEY=value', { schema: mockSchema });
 
       expect(result.ok).toBe(false);
       if (!result.ok) {
@@ -382,9 +373,9 @@ describe('Envox', () => {
 
   describe('error handling', () => {
     it('should collect multiple errors', async () => {
-      const envox = new Envox({ allowEmpty: false });
-      const result = await envox.parse(
-        '123INVALID=value\nMISSING_EQUALS\n456ALSO_INVALID=test'
+      const result = await parseEnv(
+        '123INVALID=value\nMISSING_EQUALS\n456ALSO_INVALID=test',
+        { allowEmpty: false }
       );
 
       expect(result.ok).toBe(false);
@@ -396,24 +387,29 @@ describe('Envox', () => {
       }
     });
 
-    it('should handle unexpected errors gracefully', async () => {
-      const envox = new Envox();
-      // Force an error by mocking a method to throw
-      const originalIsValidKey = (envox as any).isValidKey;
-      (envox as any).isValidKey = vi.fn().mockImplementation(() => {
-        throw new Error('Unexpected error');
-      });
+    it('should handle default options correctly', async () => {
+      // Test that default options work without explicitly passing them
+      const result = await parseEnv(
+        'KEY=value\n# Comment\nexport ANOTHER=test'
+      );
 
-      const result = await envox.parse('KEY=value');
-
-      expect(result.ok).toBe(false);
-      if (!result.ok) {
-        expect(result.errors).toHaveLength(1);
-        expect(result.errors[0]!.message).toBe('Unexpected error');
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.data).toEqual({
+          KEY: 'value',
+          ANOTHER: 'test',
+        });
+        expect(result.vars).toHaveLength(2);
       }
+    });
 
-      // Restore original method
-      (envox as any).isValidKey = originalIsValidKey;
+    it('should handle empty options object', async () => {
+      const result = await parseEnv('KEY=value', {});
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.data).toEqual({ KEY: 'value' });
+      }
     });
   });
 });
