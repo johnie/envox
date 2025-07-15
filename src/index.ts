@@ -1,3 +1,4 @@
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 import type {
   EnvoxOptions,
   EnvoxParseError,
@@ -10,7 +11,8 @@ const VALID_KEY_REGEX = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const NEED_QUOTES_REGEX = /[\s"'$\\]/;
 
 export class Envox {
-  private options: Required<EnvoxOptions>;
+  private options: Required<Omit<EnvoxOptions, "schema">> &
+    Pick<EnvoxOptions, "schema">;
 
   constructor(options: EnvoxOptions = {}) {
     this.options = {
@@ -19,10 +21,13 @@ export class Envox {
       allowExport: options.allowExport ?? true,
       trimValues: options.trimValues ?? true,
       expandVariables: options.expandVariables ?? false,
+      schema: options.schema,
     };
   }
 
-  parse(content: string): EnvoxParseResult {
+  async parse<T = Record<string, string>>(
+    content: string,
+  ): Promise<EnvoxParseResult<T>> {
     const lines = content.split("\n");
     const variables: EnvVariable[] = [];
     const errors: EnvoxParseError[] = [];
@@ -50,11 +55,81 @@ export class Envox {
       }
     }
 
-    return {
+    const result: EnvoxParseResult<T> = {
       variables,
       errors,
       isValid: errors.length === 0,
     };
+
+    if (this.options.schema && result.isValid) {
+      const obj = Envox.toObject(variables);
+      const validationResult = await this.validateWithSchema(
+        obj,
+        this.options.schema,
+      );
+
+      if (validationResult.success) {
+        result.env = validationResult.data as T;
+      } else {
+        result.errors.push(...validationResult.errors);
+        result.isValid = false;
+      }
+    }
+
+    return result;
+  }
+
+  private async validateWithSchema<T>(
+    obj: Record<string, string>,
+    schema: StandardSchemaV1<Record<string, string>, T>,
+  ): Promise<
+    { success: true; data: T } | { success: false; errors: EnvoxParseError[] }
+  > {
+    try {
+      const validation = await schema["~standard"].validate(obj);
+
+      if ("issues" in validation) {
+        const errors: EnvoxParseError[] =
+          validation.issues?.map((issue) => ({
+            line: 0,
+            message: issue.message,
+            content: issue.path
+              ? `Path: ${this.formatPath(issue.path)}`
+              : "Schema validation failed",
+          })) || [];
+
+        return { success: false, errors };
+      }
+
+      return { success: true, data: validation.value };
+    } catch (error) {
+      return {
+        success: false,
+        errors: [
+          {
+            line: 0,
+            message:
+              error instanceof Error
+                ? error.message
+                : "Schema validation failed",
+            content: "Schema validation error",
+          },
+        ],
+      };
+    }
+  }
+
+  private formatPath(
+    path: ReadonlyArray<PropertyKey | StandardSchemaV1.PathSegment>,
+  ): string {
+    return path
+      .map((segment) => {
+        if (typeof segment === "object" && "key" in segment) {
+          return String(segment.key);
+        }
+        return String(segment);
+      })
+      .join(".");
   }
 
   private parseLine(
@@ -198,23 +273,24 @@ export class Envox {
   }
 }
 
-export function parseEnv(
+// Convenience functions
+export async function parseEnv<T = Record<string, string>>(
   content: string,
-  options?: EnvoxOptions,
-): EnvoxParseResult {
-  const parser = new Envox(options);
-  return parser.parse(content);
+  options?: EnvoxOptions<T>,
+): Promise<EnvoxParseResult<T>> {
+  const parser = new Envox(options as EnvoxOptions);
+  return parser.parse<T>(content);
 }
 
 export function isEnvFile(content: string): boolean {
   return Envox.isEnvFile(content);
 }
 
-export function envToObject(
+export async function envToObject<T = Record<string, string>>(
   content: string,
-  options?: EnvoxOptions,
-): Record<string, string> {
-  const result = parseEnv(content, options);
+  options?: EnvoxOptions<T>,
+): Promise<T extends Record<string, string> ? Record<string, string> : T> {
+  const result = await parseEnv(content, options);
   if (!result.isValid) {
     throw new Error(
       `Invalid environment file: ${result.errors
@@ -222,7 +298,16 @@ export function envToObject(
         .join(", ")}`,
     );
   }
-  return Envox.toObject(result.variables);
+
+  if (result.env !== undefined) {
+    return result.env as T extends Record<string, string>
+      ? Record<string, string>
+      : T;
+  }
+
+  return Envox.toObject(result.variables) as T extends Record<string, string>
+    ? Record<string, string>
+    : T;
 }
 
 export function objectToEnv(
