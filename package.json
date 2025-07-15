@@ -26,7 +26,21 @@
         "release": "$npm_execpath run ci && changeset publish"
     },
     "keywords": [
-        "module"
+        "env",
+        "environment",
+        "environment-variables",
+        "dotenv",
+        "parser",
+        "validation",
+        "schema",
+        "zod",
+        "valibot",
+        "standard-schema",
+        "typescript",
+        "process-env",
+        "env-parser",
+        "env-validation",
+        "variable-expansion"
     ],
     "author": "Johnie Hjelm <johnie@hjelm.im>",
     "license": "MIT",
