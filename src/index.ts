@@ -5,6 +5,10 @@ import type {
   EnvVariable,
 } from "@/types";
 
+const VAR_EXPANSION_REGEX = /\$\{([^}]+)\}|\$([A-Za-z_][A-Za-z0-9_]*)/g;
+const VALID_KEY_REGEX = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const NEED_QUOTES_REGEX = /[\s"'$\\]/;
+
 export class Envox {
   private options: Required<EnvoxOptions>;
 
@@ -39,7 +43,8 @@ export class Envox {
       } catch (error) {
         errors.push({
           line: lineNumber,
-          message: error instanceof Error ? error.message : "Unknown error",
+          message:
+            error instanceof Error ? error.message : "Envox: Unknown error",
           content: line,
         });
       }
@@ -57,17 +62,18 @@ export class Envox {
     lineNumber: number,
     envMap: Map<string, string>,
   ): EnvVariable | null {
-    if (!line.trim()) {
+    const trimmedLine = line.trim();
+
+    if (!trimmedLine) {
+      return null;
+    }
+    if (this.options.allowComments && trimmedLine.startsWith("#")) {
       return null;
     }
 
-    if (this.options.allowComments && line.trim().startsWith("#")) {
-      return null;
-    }
-
-    let processedLine = line;
-    if (this.options.allowExport && line.trim().startsWith("export ")) {
-      processedLine = line.replace(/^\s*export\s+/, "");
+    let processedLine = trimmedLine;
+    if (this.options.allowExport && trimmedLine.startsWith("export ")) {
+      processedLine = trimmedLine.substring(7);
     }
 
     const equalsIndex = processedLine.indexOf("=");
@@ -125,17 +131,14 @@ export class Envox {
   }
 
   private expandVariables(value: string, envMap: Map<string, string>): string {
-    return value.replace(
-      /\$\{([^}]+)\}|\$([A-Za-z_][A-Za-z0-9_]*)/g,
-      (_match, braced, simple) => {
-        const varName = braced || simple;
-        return envMap.get(varName) || "";
-      },
-    );
+    return value.replace(VAR_EXPANSION_REGEX, (_match, braced, simple) => {
+      const varName = braced || simple;
+      return envMap.get(varName) || "";
+    });
   }
 
   private isValidKey(key: string): boolean {
-    return /^[A-Za-z_][A-Za-z0-9_]*$/.test(key);
+    return VALID_KEY_REGEX.test(key) && !key.includes(" ");
   }
 
   static isEnvFile(content: string): boolean {
@@ -186,8 +189,7 @@ export class Envox {
     const prefix = includeExport ? "export " : "";
     return Object.entries(obj)
       .map(([key, value]) => {
-        // Quote value if it contains spaces or special characters
-        const quotedValue = /[\s"'$\\]/.test(value)
+        const quotedValue = NEED_QUOTES_REGEX.test(value)
           ? `"${value.replace(/"/g, '\\"')}"`
           : value;
         return `${prefix}${key}=${quotedValue}`;
