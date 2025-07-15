@@ -28,7 +28,7 @@ bun add envox
 For schema validation, install a compatible validation library:
 
 ```bash
-npm install zod valibot @effect/schema
+npm install zod valibot effect
 # or your preferred validation library that supports Standard Schema
 ```
 
