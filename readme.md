@@ -59,7 +59,7 @@ console.log(env.DB_HOST); // "localhost"
 
 ## Features
 
-- **Flexible parsing** - Handle various .env file formats
+- **Flexible parsing** - Handle various .env file formats and process.env objects
 - **Detailed error reporting** - Get line numbers and context for errors
 - **Variable expansion** - Support for `${VAR}` and `$VAR` syntax
 - **Quote handling** - Properly parse single and double quoted values
@@ -70,13 +70,14 @@ console.log(env.DB_HOST); // "localhost"
 
 ## API Reference
 
-### `parseEnv(content, options?)`
+### `parseEnv(source, options?)`
 
-Parse environment variable content and return detailed results.
+Parse environment variable content from a string or process.env object and return detailed results.
 
 ```typescript
 import { parseEnv } from 'envox';
 
+// Parse from string
 const result = await parseEnv(content, {
   allowEmpty: true,        // Allow lines without equals sign
   allowComments: true,     // Allow # comments
@@ -84,6 +85,12 @@ const result = await parseEnv(content, {
   trimValues: true,        // Trim whitespace from values
   expandVariables: false,  // Expand ${VAR} and $VAR references
   schema: mySchema         // Optional: validate with Standard Schema
+});
+
+// Parse from process.env
+const result = await parseEnv(process.env, {
+  expandVariables: true,
+  schema: mySchema
 });
 
 // Result structure
@@ -95,17 +102,24 @@ interface EnvoxParseResult<T = Record<string, string>> {
 }
 ```
 
-### `envToObject(content, options?)`
+### `envToObject(source, options?)`
 
-Convert environment content directly to a plain object. Throws if parsing fails.
+Convert environment content or process.env directly to a plain object. Throws if parsing fails.
 
 ```typescript
 import { envToObject } from 'envox';
 
+// From string
 const env = await envToObject(`
   DATABASE_URL=postgres://localhost/mydb
   PORT=3000
 `);
+
+// From process.env
+const env = await envToObject(process.env, {
+  expandVariables: true,
+  schema: mySchema
+});
 
 console.log(env.DATABASE_URL); // "postgres://localhost/mydb"
 console.log(env.PORT);         // "3000"
@@ -155,6 +169,8 @@ const parser = new Envox({
 });
 
 const result = await parser.parse(content);
+// or
+const result = await parser.parse(process.env);
 ```
 
 ## Schema Validation
@@ -284,6 +300,96 @@ interface EnvoxOptions<T = Record<string, string>> {
 - **`trimValues`** - When `true`, removes leading/trailing whitespace from values.
 - **`expandVariables`** - When `true`, expands `${VAR}` and `$VAR` references.
 - **`schema`** - Optional Standard Schema for validation and transformation.
+
+## Working with process.env
+
+Envox can parse and validate variables directly from `process.env`:
+
+```typescript
+import { envToObject, parseEnv } from 'envox';
+import { z } from 'zod';
+
+// Parse process.env with schema validation
+const schema = z.object({
+  PORT: z.coerce.number().default(3000),
+  NODE_ENV: z.enum(['development', 'production']).default('development'),
+  API_KEY: z.string().min(1)
+});
+
+const config = await envToObject(process.env, { schema });
+
+// Variable expansion also works with process.env
+process.env.API_HOST = 'api.example.com';
+process.env.API_URL = 'https://${API_HOST}/v1';
+
+const expanded = await envToObject(process.env, { expandVariables: true });
+console.log(expanded.API_URL); // "https://api.example.com/v1"
+```
+
+## Using with dotenv
+
+Envox works great alongside dotenv for enhanced validation and type safety:
+
+```typescript
+import 'dotenv/config'; // Load .env file into process.env
+import { envToObject } from 'envox';
+import { z } from 'zod';
+
+// Define your configuration schema
+const ConfigSchema = z.object({
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  PORT: z.coerce.number().int().min(1).max(65535).default(3000),
+  DATABASE_URL: z.string().url(),
+  API_KEY: z.string().min(32),
+  DEBUG: z.coerce.boolean().default(false)
+});
+
+// Validate and transform process.env after dotenv loads it
+const config = await envToObject(process.env, { schema: ConfigSchema });
+
+// Now you have fully typed and validated configuration
+console.log(config.PORT); // TypeScript knows this is a number
+console.log(config.DEBUG); // TypeScript knows this is a boolean
+
+export default config;
+```
+
+### Advanced dotenv integration
+
+```typescript
+import dotenv from 'dotenv';
+import { envToObject, parseEnv } from 'envox';
+import { z } from 'zod';
+
+// Load different .env files based on environment
+const envFile = process.env.NODE_ENV === 'test' ? '.env.test' : '.env';
+dotenv.config({ path: envFile });
+
+const ConfigSchema = z.object({
+  DATABASE_URL: z.string().url(),
+  REDIS_URL: z.string().url().optional(),
+  JWT_SECRET: z.string().min(32),
+  PORT: z.coerce.number().default(3000),
+  // Enable variable expansion for complex configurations
+  API_ENDPOINT: z.string().url()
+});
+
+// Parse with detailed error reporting
+const result = await parseEnv(process.env, { 
+  schema: ConfigSchema,
+  expandVariables: true 
+});
+
+if (!result.isValid) {
+  console.error('Configuration errors:');
+  result.errors.forEach(error => {
+    console.error(`- ${error.message}`);
+  });
+  process.exit(1);
+}
+
+const config = result.env!;
+```
 
 ## Variable Expansion
 
@@ -548,47 +654,6 @@ if (!result.isValid) {
   // 3. Validation error: Number must be less than or equal to 10
   // 4. Validation error: Number must be greater than or equal to 100
 }
-```
-
-## Migration from Other Libraries
-
-### From dotenv
-
-```typescript
-// Before (dotenv)
-import 'dotenv/config';
-const port = process.env.PORT || '3000';
-
-// After (envox)
-import { envToObject } from 'envox';
-import { readFileSync } from 'fs';
-
-const env = await envToObject(readFileSync('.env', 'utf8'));
-const port = env.PORT || '3000';
-```
-
-### From dotenv with validation
-
-```typescript
-// Before (dotenv + manual validation)
-import 'dotenv/config';
-
-const port = parseInt(process.env.PORT || '3000', 10);
-if (isNaN(port) || port < 1 || port > 65535) {
-  throw new Error('Invalid PORT');
-}
-
-// After (envox with schema)
-import { z } from 'zod';
-import { envToObject } from 'envox';
-import { readFileSync } from 'fs';
-
-const schema = z.object({
-  PORT: z.coerce.number().int().min(1).max(65535).default(3000)
-});
-
-const config = await envToObject(readFileSync('.env', 'utf8'), { schema });
-const port = config.PORT; // Guaranteed to be a valid number
 ```
 
 ## TypeScript Integration
