@@ -146,7 +146,7 @@ const content = `
 console.log(isEnvFile(content)); // true
 ```
 
-#### `fromObject(obj, includeExport?)`
+#### `fromObject(obj, { includeExport })`
 
 Convert a plain object to environment variable format.
 
@@ -154,7 +154,7 @@ Convert a plain object to environment variable format.
 import { fromObject } from 'envox';
 
 const obj = { API_KEY: 'secret', DEBUG: 'true' };
-const envString = fromObject(obj, true); // Include 'export' prefix
+const envString = fromObject(obj, { includeExport: true }); // Include 'export' prefix
 
 console.log(envString);
 // export API_KEY=secret
