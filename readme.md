@@ -7,6 +7,7 @@
 <p align="center">
 <a href="https://opensource.org/licenses/MIT" rel="nofollow"><img src="https://img.shields.io/github/license/johnie/envox" alt="License"></a>
 <a href="https://www.npmjs.com/package/envox" rel="nofollow"><img src="https://img.shields.io/npm/v/envox.svg" alt="npm"></a>
+<a href="https://github.com/johnie/envox/actions"><img src="https://github.com/johnie/envox/actions/workflows/ci.yml/badge.svg" alt="Build Status"></a>
 <a href="https://github.com/johnie/envox" rel="nofollow"><img src="https://img.shields.io/github/stars/johnie/envox" alt="stars"></a>
 </p>
 
