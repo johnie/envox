@@ -1,5 +1,11 @@
 # envox
 
+## 0.0.10
+
+### Patch Changes
+
+- [#14](https://github.com/johnie/envox/pull/14) [`7ee2c5a`](https://github.com/johnie/envox/commit/7ee2c5abd0410f4b0ac24b988fba893d776d321c) Thanks [@dependabot](https://github.com/apps/dependabot)! - deps: bump the dependencies group with 2 updates
+
 ## 0.0.9
 
 ### Patch Changes
