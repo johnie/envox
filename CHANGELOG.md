@@ -1,5 +1,11 @@
 # envox
 
+## 0.0.11
+
+### Patch Changes
+
+- [#17](https://github.com/johnie/envox/pull/17) [`d9418e6`](https://github.com/johnie/envox/commit/d9418e6cb9217220ae02a9c61efcb0036bf29e16) Thanks [@johnie](https://github.com/johnie)! - feat: only synchronous validation
+
 ## 0.0.10
 
 ### Patch Changes
