@@ -18,10 +18,10 @@ const defaultOptions = {
   expandVariables: false,
 } as const;
 
-export async function parseEnv<TOut = Record<string, string>>(
+export function parseEnv<TOut = Record<string, string>>(
   source: string | Record<string, string | undefined>,
   options: EnvoxOptions<TOut> = {}
-): Promise<ParseResult<TOut>> {
+): ParseResult<TOut> {
   const mergedOptions = { ...defaultOptions, ...options };
   const variables: EnvVariable[] = [];
   const errors: EnvoxParseError[] = [];
@@ -79,7 +79,7 @@ export async function parseEnv<TOut = Record<string, string>>(
   const obj = toObject(variables);
 
   if (mergedOptions.schema) {
-    const validationResult = await runSchema(mergedOptions.schema, obj);
+    const validationResult = runSchema(mergedOptions.schema, obj);
     if (validationResult.success) {
       return { ok: true, data: validationResult.data, vars: variables };
     } else {
