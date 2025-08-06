@@ -8,8 +8,8 @@ import { toObject } from '@/helpers';
 
 describe('parseEnv', () => {
   describe('basic parsing', () => {
-    it('should parse simple key-value pairs', async () => {
-      const result = await parseEnv('KEY=value\nANOTHER=test');
+    it('should parse simple key-value pairs', () => {
+      const result = parseEnv('KEY=value\nANOTHER=test');
 
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -26,8 +26,8 @@ describe('parseEnv', () => {
       }
     });
 
-    it('should handle empty lines', async () => {
-      const result = await parseEnv('KEY=value\n\nANOTHER=test\n');
+    it('should handle empty lines', () => {
+      const result = parseEnv('KEY=value\n\nANOTHER=test\n');
 
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -39,8 +39,8 @@ describe('parseEnv', () => {
       }
     });
 
-    it('should handle comments when allowComments is true', async () => {
-      const result = await parseEnv(
+    it('should handle comments when allowComments is true', () => {
+      const result = parseEnv(
         '# This is a comment\nKEY=value\n# Another comment',
         { allowComments: true }
       );
@@ -52,8 +52,8 @@ describe('parseEnv', () => {
       }
     });
 
-    it('should handle export statements when allowExport is true', async () => {
-      const result = await parseEnv('export KEY=value\nexport ANOTHER=test', {
+    it('should handle export statements when allowExport is true', () => {
+      const result = parseEnv('export KEY=value\nexport ANOTHER=test', {
         allowExport: true,
       });
 
@@ -66,8 +66,8 @@ describe('parseEnv', () => {
       }
     });
 
-    it('should parse object input', async () => {
-      const result = await parseEnv({ KEY: 'value', ANOTHER: 'test' });
+    it('should parse object input', () => {
+      const result = parseEnv({ KEY: 'value', ANOTHER: 'test' });
 
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -79,8 +79,8 @@ describe('parseEnv', () => {
       }
     });
 
-    it('should filter out undefined values from object input', async () => {
-      const result = await parseEnv({ KEY: 'value', UNDEFINED: undefined });
+    it('should filter out undefined values from object input', () => {
+      const result = parseEnv({ KEY: 'value', UNDEFINED: undefined });
 
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -91,8 +91,8 @@ describe('parseEnv', () => {
   });
 
   describe('options', () => {
-    it('should trim values when trimValues is true', async () => {
-      const result = await parseEnv('KEY=  value  ', { trimValues: true });
+    it('should trim values when trimValues is true', () => {
+      const result = parseEnv('KEY=  value  ', { trimValues: true });
 
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -100,21 +100,21 @@ describe('parseEnv', () => {
       }
     });
 
-    it('should reject lines without equals when allowEmpty is false', async () => {
-      const result = await parseEnv('KEY=value\nINVALID_LINE', {
+    it('should reject lines without equals when allowEmpty is false', () => {
+      const result = parseEnv('KEY=value\nINVALID_LINE', {
         allowEmpty: false,
       });
 
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.errors).toHaveLength(1);
-        expect(result.errors[0]!.message).toBe('Missing equals sign');
-        expect(result.errors[0]!.line).toBe(2);
+        expect(result.errors[0]?.message).toBe('Missing equals sign');
+        expect(result.errors[0]?.line).toBe(2);
       }
     });
 
-    it('should treat comments as regular lines when allowComments is false', async () => {
-      const result = await parseEnv('KEY=value\n# This should cause an error', {
+    it('should treat comments as regular lines when allowComments is false', () => {
+      const result = parseEnv('KEY=value\n# This should cause an error', {
         allowComments: false,
         allowEmpty: false,
       });
@@ -122,18 +122,18 @@ describe('parseEnv', () => {
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.errors).toHaveLength(1);
-        expect(result.errors[0]!.line).toBe(2);
-        expect(result.errors[0]!.message).toBe('Missing equals sign');
+        expect(result.errors[0]?.line).toBe(2);
+        expect(result.errors[0]?.message).toBe('Missing equals sign');
       }
     });
 
-    it('should not handle export when allowExport is false', async () => {
-      const result = await parseEnv('export KEY=value', { allowExport: false });
+    it('should not handle export when allowExport is false', () => {
+      const result = parseEnv('export KEY=value', { allowExport: false });
 
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.errors).toHaveLength(1);
-        expect(result.errors[0]!.message).toContain(
+        expect(result.errors[0]?.message).toContain(
           'Invalid environment variable key'
         );
       }
@@ -141,8 +141,8 @@ describe('parseEnv', () => {
   });
 
   describe('quoted values', () => {
-    it('should handle double-quoted values', async () => {
-      const result = await parseEnv('KEY="value with spaces"');
+    it('should handle double-quoted values', () => {
+      const result = parseEnv('KEY="value with spaces"');
 
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -150,8 +150,8 @@ describe('parseEnv', () => {
       }
     });
 
-    it('should handle single-quoted values', async () => {
-      const result = await parseEnv("KEY='value with spaces'");
+    it('should handle single-quoted values', () => {
+      const result = parseEnv("KEY='value with spaces'");
 
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -159,8 +159,8 @@ describe('parseEnv', () => {
       }
     });
 
-    it('should handle escaped quotes in double-quoted values', async () => {
-      const result = await parseEnv('KEY="value with \\"quotes\\""');
+    it('should handle escaped quotes in double-quoted values', () => {
+      const result = parseEnv('KEY="value with \\"quotes\\""');
 
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -168,8 +168,8 @@ describe('parseEnv', () => {
       }
     });
 
-    it('should handle escaped backslashes in double-quoted values', async () => {
-      const result = await parseEnv('KEY="value with \\\\ backslash"');
+    it('should handle escaped backslashes in double-quoted values', () => {
+      const result = parseEnv('KEY="value with \\\\ backslash"');
 
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -177,8 +177,8 @@ describe('parseEnv', () => {
       }
     });
 
-    it('should not process escapes in single-quoted values', async () => {
-      const result = await parseEnv("KEY='value with \\'quotes\\''");
+    it('should not process escapes in single-quoted values', () => {
+      const result = parseEnv("KEY='value with \\'quotes\\''");
 
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -188,8 +188,8 @@ describe('parseEnv', () => {
   });
 
   describe('variable expansion', () => {
-    it('should expand variables when expandVariables is true', async () => {
-      const result = await parseEnv('BASE=hello\nEXPANDED=${BASE}_world', {
+    it('should expand variables when expandVariables is true', () => {
+      const result = parseEnv('BASE=hello\nEXPANDED=${BASE}_world', {
         expandVariables: true,
       });
 
@@ -202,8 +202,8 @@ describe('parseEnv', () => {
       }
     });
 
-    it('should expand variables using simple syntax', async () => {
-      const result = await parseEnv('BASE=hello\nEXPANDED=$BASE_world', {
+    it('should expand variables using simple syntax', () => {
+      const result = parseEnv('BASE=hello\nEXPANDED=$BASE_world', {
         expandVariables: true,
       });
 
@@ -216,8 +216,8 @@ describe('parseEnv', () => {
       }
     });
 
-    it('should handle missing variables in expansion', async () => {
-      const result = await parseEnv('EXPANDED=${MISSING}_value', {
+    it('should handle missing variables in expansion', () => {
+      const result = parseEnv('EXPANDED=${MISSING}_value', {
         expandVariables: true,
       });
 
@@ -227,8 +227,8 @@ describe('parseEnv', () => {
       }
     });
 
-    it('should expand variables from object input', async () => {
-      const result = await parseEnv(
+    it('should expand variables from object input', () => {
+      const result = parseEnv(
         {
           BASE: 'hello',
           EXPANDED: '${BASE}_world',
@@ -245,8 +245,8 @@ describe('parseEnv', () => {
       }
     });
 
-    it('should not expand variables when expandVariables is false', async () => {
-      const result = await parseEnv('BASE=hello\nEXPANDED=${BASE}_world', {
+    it('should not expand variables when expandVariables is false', () => {
+      const result = parseEnv('BASE=hello\nEXPANDED=${BASE}_world', {
         expandVariables: false,
       });
 
@@ -261,34 +261,32 @@ describe('parseEnv', () => {
   });
 
   describe('validation', () => {
-    it('should reject invalid keys', async () => {
-      const result = await parseEnv('123INVALID=value');
+    it('should reject invalid keys', () => {
+      const result = parseEnv('123INVALID=value');
 
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.errors).toHaveLength(1);
-        expect(result.errors[0]!.message).toContain(
+        expect(result.errors[0]?.message).toContain(
           'Invalid environment variable key'
         );
       }
     });
 
-    it('should reject keys with spaces', async () => {
-      const result = await parseEnv('INVALID KEY=value');
+    it('should reject keys with spaces', () => {
+      const result = parseEnv('INVALID KEY=value');
 
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.errors).toHaveLength(1);
-        expect(result.errors[0]!.message).toContain(
+        expect(result.errors[0]?.message).toContain(
           'Invalid environment variable key'
         );
       }
     });
 
-    it('should accept valid keys', async () => {
-      const result = await parseEnv(
-        'VALID_KEY=value\n_ANOTHER=test\nKEY123=value'
-      );
+    it('should accept valid keys', () => {
+      const result = parseEnv('VALID_KEY=value\n_ANOTHER=test\nKEY123=value');
 
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -302,7 +300,7 @@ describe('parseEnv', () => {
   });
 
   describe('schema validation', () => {
-    it('should validate with a schema', async () => {
+    it('should validate with a schema', () => {
       const mockSchema: StandardSchemaV1<
         Record<string, string>,
         { port: number }
@@ -310,13 +308,13 @@ describe('parseEnv', () => {
         '~standard': {
           version: 1,
           vendor: 'test',
-          validate: vi.fn().mockResolvedValue({
+          validate: vi.fn().mockReturnValue({
             value: { port: 3000 },
           }),
         },
       };
 
-      const result = await parseEnv('PORT=3000', { schema: mockSchema });
+      const result = parseEnv('PORT=3000', { schema: mockSchema });
 
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -327,12 +325,12 @@ describe('parseEnv', () => {
       }
     });
 
-    it('should handle schema validation errors', async () => {
-      const mockSchema: StandardSchemaV1<Record<string, string>, any> = {
+    it('should handle schema validation errors', () => {
+      const mockSchema: StandardSchemaV1<Record<string, string>, unknown> = {
         '~standard': {
           version: 1,
           vendor: 'test',
-          validate: vi.fn().mockResolvedValue({
+          validate: vi.fn().mockReturnValue({
             issues: [
               {
                 message: 'Required field missing',
@@ -343,38 +341,40 @@ describe('parseEnv', () => {
         },
       };
 
-      const result = await parseEnv('OTHER=value', { schema: mockSchema });
+      const result = parseEnv('OTHER=value', { schema: mockSchema });
 
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.errors).toHaveLength(1);
-        expect(result.errors[0]!.message).toBe('Required field missing');
-        expect(result.errors[0]!.content).toBe('Path: PORT');
+        expect(result.errors[0]?.message).toBe('Required field missing');
+        expect(result.errors[0]?.content).toBe('Path: PORT');
       }
     });
 
-    it('should handle schema validation exceptions', async () => {
-      const mockSchema: StandardSchemaV1<Record<string, string>, any> = {
+    it('should handle schema validation exceptions', () => {
+      const mockSchema: StandardSchemaV1<Record<string, string>, unknown> = {
         '~standard': {
           version: 1,
           vendor: 'test',
-          validate: vi.fn().mockRejectedValue(new Error('Schema error')),
+          validate: vi.fn().mockImplementation(() => {
+            throw new Error('Schema error');
+          }),
         },
       };
 
-      const result = await parseEnv('KEY=value', { schema: mockSchema });
+      const result = parseEnv('KEY=value', { schema: mockSchema });
 
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.errors).toHaveLength(1);
-        expect(result.errors[0]!.message).toBe('Schema error');
+        expect(result.errors[0]?.message).toBe('Schema error');
       }
     });
   });
 
   describe('error handling', () => {
-    it('should collect multiple errors', async () => {
-      const result = await parseEnv(
+    it('should collect multiple errors', () => {
+      const result = parseEnv(
         '123INVALID=value\nMISSING_EQUALS\n456ALSO_INVALID=test',
         { allowEmpty: false }
       );
@@ -382,17 +382,15 @@ describe('parseEnv', () => {
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.errors).toHaveLength(3);
-        expect(result.errors[0]!.line).toBe(1);
-        expect(result.errors[1]!.line).toBe(2);
-        expect(result.errors[2]!.line).toBe(3);
+        expect(result.errors[0]?.line).toBe(1);
+        expect(result.errors[1]?.line).toBe(2);
+        expect(result.errors[2]?.line).toBe(3);
       }
     });
 
-    it('should handle default options correctly', async () => {
+    it('should handle default options correctly', () => {
       // Test that default options work without explicitly passing them
-      const result = await parseEnv(
-        'KEY=value\n# Comment\nexport ANOTHER=test'
-      );
+      const result = parseEnv('KEY=value\n# Comment\nexport ANOTHER=test');
 
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -404,8 +402,8 @@ describe('parseEnv', () => {
       }
     });
 
-    it('should handle empty options object', async () => {
-      const result = await parseEnv('KEY=value', {});
+    it('should handle empty options object', () => {
+      const result = parseEnv('KEY=value', {});
 
       expect(result.ok).toBe(true);
       if (result.ok) {

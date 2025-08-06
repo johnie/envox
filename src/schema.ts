@@ -1,14 +1,18 @@
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 import type { EnvoxParseError } from '@/types';
 
-export async function runSchema<TIn, TOut>(
+export function runSchema<TIn, TOut>(
   schema: StandardSchemaV1<TIn, TOut>,
-  data: TIn,
-): Promise<
-  { success: true; data: TOut } | { success: false; errors: EnvoxParseError[] }
-> {
+  data: TIn
+):
+  | { success: true; data: TOut }
+  | { success: false; errors: EnvoxParseError[] } {
   try {
-    const validation = await schema['~standard'].validate(data);
+    const validation = schema['~standard'].validate(data);
+
+    if (validation instanceof Promise) {
+      throw new TypeError('Schema validation must be synchronous');
+    }
 
     if ('issues' in validation) {
       const errors: EnvoxParseError[] =
@@ -40,7 +44,7 @@ export async function runSchema<TIn, TOut>(
 }
 
 function formatPath(
-  path: ReadonlyArray<PropertyKey | StandardSchemaV1.PathSegment>,
+  path: ReadonlyArray<PropertyKey | StandardSchemaV1.PathSegment>
 ): string {
   return path
     .map((segment) => {
