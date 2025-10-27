@@ -60,7 +60,7 @@
         "@types/node": "^24.2.0",
         "tsup": "^8.5.0",
         "typescript": "^5.9.2",
-        "vitest": "^3.2.4"
+        "vitest": "^4.0.4"
     },
     "dependencies": {
         "@standard-schema/spec": "^1.0.0"
