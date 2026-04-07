@@ -3,7 +3,7 @@ import type { EnvoxParseError } from '@/types';
 
 export function runSchema<TIn, TOut>(
   schema: StandardSchemaV1<TIn, TOut>,
-  data: TIn
+  data: TIn,
 ):
   | { success: true; data: TOut }
   | { success: false; errors: EnvoxParseError[] } {
@@ -44,7 +44,7 @@ export function runSchema<TIn, TOut>(
 }
 
 function formatPath(
-  path: ReadonlyArray<PropertyKey | StandardSchemaV1.PathSegment>
+  path: ReadonlyArray<PropertyKey | StandardSchemaV1.PathSegment>,
 ): string {
   return path
     .map((segment) => {

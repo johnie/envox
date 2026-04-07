@@ -25,13 +25,6 @@ export type ParseFailure = {
 
 export type ParseResult<T> = ParseSuccess<T> | ParseFailure;
 
-export interface EnvoxParseResult<T = Record<string, string>> {
-  variables: EnvVariable[];
-  errors: EnvoxParseError[];
-  isValid: boolean;
-  env?: T;
-}
-
 export interface EnvoxOptions<T = Record<string, string>> {
   allowEmpty?: boolean;
   allowComments?: boolean;
