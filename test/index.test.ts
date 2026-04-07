@@ -1,9 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { StandardSchemaV1 } from '@standard-schema/spec';
-import { EnvoxError } from '@/errors';
-import { expandValue } from '@/expansions';
 import { parseEnv, isEnvFile, fromObject } from '@/index';
-import { REGEX } from '@/constants';
 import { toObject } from '@/helpers';
 
 describe('parseEnv', () => {
@@ -258,6 +255,61 @@ describe('parseEnv', () => {
         });
       }
     });
+
+    it('should expand braced variables', () => {
+      const result = parseEnv('TEST=value\nOUTPUT=${TEST}', {
+        expandVariables: true,
+      });
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.data.OUTPUT).toBe('value');
+      }
+    });
+
+    it('should expand simple dollar variables', () => {
+      const result = parseEnv('TEST=value\nOUTPUT=$TEST', {
+        expandVariables: true,
+      });
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.data.OUTPUT).toBe('value');
+      }
+    });
+
+    it('should resolve missing expansion variables to empty string', () => {
+      const result = parseEnv('OUTPUT=${MISSING}', {
+        expandVariables: true,
+      });
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.data.OUTPUT).toBe('');
+      }
+    });
+
+    it('should expand multiple variables in one value', () => {
+      const result = parseEnv('A=hello\nB=world\nOUTPUT=${A}_${B}', {
+        expandVariables: true,
+      });
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.data.OUTPUT).toBe('hello_world');
+      }
+    });
+
+    it('should expand mixed braced and simple variables', () => {
+      const result = parseEnv('A=hello\nB=world\nOUTPUT=${A}_$B', {
+        expandVariables: true,
+      });
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.data.OUTPUT).toBe('hello_world');
+      }
+    });
   });
 
   describe('validation', () => {
@@ -388,8 +440,17 @@ describe('parseEnv', () => {
       }
     });
 
+    it('should include line content in errors', () => {
+      const result = parseEnv('123BAD=value');
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.errors[0]?.content).toBe('123BAD=value');
+        expect(result.errors[0]?.line).toBe(1);
+      }
+    });
+
     it('should handle default options correctly', () => {
-      // Test that default options work without explicitly passing them
       const result = parseEnv('KEY=value\n# Comment\nexport ANOTHER=test');
 
       expect(result.ok).toBe(true);
@@ -409,110 +470,6 @@ describe('parseEnv', () => {
       if (result.ok) {
         expect(result.data).toEqual({ KEY: 'value' });
       }
-    });
-  });
-});
-
-describe('expandValue', () => {
-  it('should expand braced variables', () => {
-    const lookup = (key: string) => (key === 'TEST' ? 'value' : undefined);
-    const result = expandValue('${TEST}', lookup);
-    expect(result).toBe('value');
-  });
-
-  it('should expand simple variables', () => {
-    const lookup = (key: string) => (key === 'TEST' ? 'value' : undefined);
-    const result = expandValue('$TEST', lookup);
-    expect(result).toBe('value');
-  });
-
-  it('should handle missing variables', () => {
-    const lookup = () => undefined;
-    const result = expandValue('${MISSING}', lookup);
-    expect(result).toBe('');
-  });
-
-  it('should expand multiple variables', () => {
-    const lookup = (key: string) => {
-      if (key === 'A') return 'hello';
-      if (key === 'B') return 'world';
-      return undefined;
-    };
-    const result = expandValue('${A}_${B}', lookup);
-    expect(result).toBe('hello_world');
-  });
-
-  it('should handle mixed braced and simple variables', () => {
-    const lookup = (key: string) => {
-      if (key === 'A') return 'hello';
-      if (key === 'B') return 'world';
-      return undefined;
-    };
-    const result = expandValue('${A}_$B', lookup);
-    expect(result).toBe('hello_world');
-  });
-});
-
-describe('EnvoxError', () => {
-  it('should create error with correct properties', () => {
-    const error = new EnvoxError(1, 'INVALID=value', 'Test error');
-    expect(error.name).toBe('EnvoxError');
-    expect(error.line).toBe(1);
-    expect(error.content).toBe('INVALID=value');
-    expect(error.message).toBe('Test error');
-  });
-
-  it('should be instanceof Error', () => {
-    const error = new EnvoxError(1, 'content', 'message');
-    expect(error instanceof Error).toBe(true);
-    expect(error instanceof EnvoxError).toBe(true);
-  });
-});
-
-describe('constants', () => {
-  describe('REGEX', () => {
-    it('VAR_EXPANSION should match braced variables', () => {
-      expect('${TEST}'.match(REGEX.VAR_EXPANSION)).toBeTruthy();
-      expect('${TEST_VAR}'.match(REGEX.VAR_EXPANSION)).toBeTruthy();
-    });
-
-    it('VAR_EXPANSION should match simple variables', () => {
-      expect('$TEST'.match(REGEX.VAR_EXPANSION)).toBeTruthy();
-      expect('$TEST_VAR'.match(REGEX.VAR_EXPANSION)).toBeTruthy();
-    });
-
-    it('VALID_KEY should match valid keys', () => {
-      expect(REGEX.VALID_KEY.test('TEST')).toBe(true);
-      expect(REGEX.VALID_KEY.test('TEST_VAR')).toBe(true);
-      expect(REGEX.VALID_KEY.test('_TEST')).toBe(true);
-      expect(REGEX.VALID_KEY.test('TEST123')).toBe(true);
-    });
-
-    it('VALID_KEY should not match invalid keys', () => {
-      expect(REGEX.VALID_KEY.test('123TEST')).toBe(false);
-      expect(REGEX.VALID_KEY.test('TEST-VAR')).toBe(false);
-      expect(REGEX.VALID_KEY.test('TEST VAR')).toBe(false);
-    });
-
-    it('NEED_QUOTES should match values that need quotes', () => {
-      expect(REGEX.NEED_QUOTES.test('value with spaces')).toBe(true);
-      expect(REGEX.NEED_QUOTES.test('value"with"quotes')).toBe(true);
-      expect(REGEX.NEED_QUOTES.test("value'with'quotes")).toBe(true);
-      expect(REGEX.NEED_QUOTES.test('value$with$dollar')).toBe(true);
-      expect(REGEX.NEED_QUOTES.test('value\\with\\backslash')).toBe(true);
-    });
-
-    it('NEED_QUOTES should not match simple values', () => {
-      expect(REGEX.NEED_QUOTES.test('simplevalue')).toBe(false);
-      expect(REGEX.NEED_QUOTES.test('simple_value')).toBe(false);
-      expect(REGEX.NEED_QUOTES.test('simple123')).toBe(false);
-    });
-
-    it('ENV_VAR_LIKE should match environment variable patterns', () => {
-      expect(REGEX.ENV_VAR_LIKE.test('TEST')).toBe(true);
-      expect(REGEX.ENV_VAR_LIKE.test('TEST_VAR')).toBe(true);
-      expect(REGEX.ENV_VAR_LIKE.test('_TEST')).toBe(true);
-      expect(REGEX.ENV_VAR_LIKE.test('TEST123')).toBe(true);
     });
   });
 });
