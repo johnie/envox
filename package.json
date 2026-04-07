@@ -2,20 +2,26 @@
     "name": "envox",
     "version": "0.0.11",
     "description": "Fast and flexible environment variable parser with detailed error reporting.",
-    "main": "dist/index.js",
+    "main": "dist/index.cjs",
     "exports": {
         ".": {
-            "import": "./dist/index.js",
-            "require": "./dist/index.cjs"
+            "import": {
+                "types": "./dist/index.d.mts",
+                "default": "./dist/index.mjs"
+            },
+            "require": {
+                "types": "./dist/index.d.cts",
+                "default": "./dist/index.cjs"
+            }
         }
     },
-    "typings": "dist/index.d.ts",
+    "types": "dist/index.d.mts",
     "files": [
         "dist"
     ],
     "type": "module",
     "scripts": {
-        "build": "tsup",
+        "build": "tsdown",
         "ci": "$npm_execpath run build && $npm_execpath run check-format && $npm_execpath run check-exports && $npm_execpath run test",
         "test": "vitest run",
         "test:watch": "vitest",
@@ -58,7 +64,7 @@
         "@changesets/changelog-github": "^0.6.0",
         "@changesets/cli": "^2.30.0",
         "@types/node": "^25.5.2",
-        "tsup": "^8.5.1",
+        "tsdown": "^0.21.7",
         "typescript": "^6.0.2",
         "vitest": "^4.1.3"
     },
