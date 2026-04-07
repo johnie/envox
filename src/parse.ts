@@ -1,8 +1,7 @@
 import type { EnvoxOptions, EnvoxParseError, EnvVariable } from '@/types';
 
 const REGEX = {
-  VAR_EXPANSION:
-    /\$\{([^}]+)\}|\$([A-Za-z_][A-Za-z0-9_]*?)(?=[^A-Za-z0-9]|$)/g,
+  VAR_EXPANSION: /\$\{([^}]+)\}|\$([A-Za-z_][A-Za-z0-9_]*?)(?=[^A-Za-z0-9]|$)/g,
   VALID_KEY: /^[A-Za-z_][A-Za-z0-9_]*$/,
 } as const;
 
@@ -133,8 +132,7 @@ export function parse(
         } else {
           errors.push({
             line: lineNumber,
-            message:
-              error instanceof Error ? error.message : 'Unknown error',
+            message: error instanceof Error ? error.message : 'Unknown error',
             content: line,
           });
         }
