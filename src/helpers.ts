@@ -1,5 +1,7 @@
-import { REGEX } from '@/constants';
 import type { EnvVariable } from '@/types';
+
+const NEED_QUOTES = /[\s"'$\\]/;
+const ENV_VAR_LIKE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 export function isEnvFile(content: string): boolean {
   const lines = content.split('\n').filter((line) => line.trim());
@@ -27,7 +29,7 @@ function isLikeEnvVar(line: string): boolean {
   if (equalsIndex === -1) return false;
 
   const key = cleaned.substring(0, equalsIndex).trim();
-  return REGEX.ENV_VAR_LIKE.test(key);
+  return ENV_VAR_LIKE.test(key);
 }
 
 export function toObject(variables: EnvVariable[]): Record<string, string> {
@@ -40,12 +42,12 @@ export function toObject(variables: EnvVariable[]): Record<string, string> {
 
 export function fromObject(
   obj: Record<string, string>,
-  { includeExport = false }: { includeExport?: boolean } = {}
+  { includeExport = false }: { includeExport?: boolean } = {},
 ): string {
   const prefix = includeExport ? 'export ' : '';
   return Object.entries(obj)
     .map(([key, value]) => {
-      const quotedValue = REGEX.NEED_QUOTES.test(value)
+      const quotedValue = NEED_QUOTES.test(value)
         ? `"${value.replace(/"/g, '\\"')}"`
         : value;
       return `${prefix}${key}=${quotedValue}`;
